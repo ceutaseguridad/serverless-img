@@ -1,8 +1,8 @@
 # Guía de Despliegue del Microservicio de Imágenes en RunPod
 
-**Versión 3.1 (Añadido Proceso de Verificación Manual)**
+**Versión 3.2 (Verificación Manual por Comandos y URLs Corregidas)**
 
-Este documento detalla el proceso paso a paso para desplegar el microservicio de imágenes de Morpheus AI Suite como un Endpoint Serverless en la plataforma RunPod. Esta guía incluye la configuración del almacenamiento persistente y una estrategia de cacheo de modelos para un rendimiento óptimo.
+Este documento detalla el proceso paso a paso para desplegar el microservicio de imágenes de Morpheus AI Suite. Esta guía incluye la configuración del almacenamiento persistente y una estrategia de cacheo de modelos para un rendimiento óptimo.
 
 ## Arquitectura de Despliegue Optimizada
 
@@ -61,43 +61,51 @@ El script `pod_start.sh` de este repositorio ya implementa esta lógica de cache
 
 ## Proceso de Verificación Manual (Opcional pero Recomendado)
 
-Antes de desplegar el endpoint serverless, puedes verificar manualmente que todas las rutas de descarga y la estructura de directorios son correctas. Este proceso "pre-calienta" el caché, haciendo que el primer arranque del worker serverless sea instantáneo.
+Este proceso valida que todas las URLs y rutas son correctas y "pre-calienta" el caché de modelos en el Network Volume, haciendo que el primer arranque del worker serverless sea casi instantáneo.
 
 ### 1. Iniciar un Pod de Prueba
 - Ve a `Community Cloud` o `Secure Cloud` y elige una GPU de bajo coste (ej. RTX 3070).
 - Usa la plantilla **`RunPod Pytorch 2`**.
 - En "Volume Mounts", monta tu volumen `morpheus-microservices-storage` en la ruta `/workspace`.
-- Inicia el pod y conéctate a él vía **SSH**.
+- Inicia el pod y conéctate a él vía **Web Terminal**.
 
-### 2. Ejecutar el Script de Descarga
-- Una vez en la terminal SSH del pod, crea un directorio de prueba y entra en él:
+### 2. Ejecutar los Comandos de Descarga
+- Una vez en la terminal, crea un directorio de prueba y entra en él:
   ```bash
   mkdir -p /workspace/test_downloads && cd /workspace/test_downloads
-Copia y pega el siguiente bloque de comandos en la terminal para descargar todas las dependencias a tu volumen de red:
+A continuación, ejecuta los siguientes comandos uno por uno para clonar los nodos y descargar todos los modelos:
+Clonar Nodos Personalizados:
 code
 Bash
-# Descargar el archivo de recursos desde GitHub
-wget https://raw.githubusercontent.com/ceutaseguridad/serverless-img/main/morpheus_resources_image.txt
+git clone https://github.com/ltdrdata/ComfyUI-Manager ./ComfyUI-Manager
+git clone https://github.com/ceutaseguridad/PuLID_ComfyUI ./ComfyUI-PuLID
+git clone https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git ./ComfyUI-Advanced-ControlNet
+Crear Directorios para Modelos:
+code
+Bash
+mkdir -p ./checkpoints ./ipadapter ./controlnet
+Descargar Modelos:
+code
+Bash
+# Checkpoint principal
+wget --progress=bar:force -O ./checkpoints/talmendoxl_v11_beta.safetensors https://civitai.com/api/download/models/131960
 
-# Leer el archivo y procesar para descargar todo
-grep -v '^#' "morpheus_resources_image.txt" | while IFS=, read -r type name url; do
-    type=$(echo "$type" | xargs); name=$(echo "$name" | xargs); url=$(echo "$url" | xargs)
-    if [ -z "$type" ]; then continue; fi
-    echo "--- Procesando: ${type} | ${name} ---"
-    if [ "$type" == "GIT" ]; then
-        git clone "${url}" "./${name}"
-    elif [ "$type" == "URL_AUTH" ]; then
-        folder=$(dirname "${name}"); mkdir -p "./${folder}"; wget -O "./${name}" "${url}"
-    elif [ "$type" == "MODEL" ]; then
-        IFS=, read -r _ folder hf_repo filename <<< "$type,$name,$url"
-        folder=$(echo "$folder" | xargs); hf_repo=$(echo "$hf_repo" | xargs); filename=$(echo "$filename" | xargs)
-        mkdir -p "./${folder}"; wget -O "./${folder}/${filename}" "https://huggingface.co/${hf_repo}/resolve/main/${filename}"
-    fi
-done
+# Modelo PuLID (Requiere autenticación de Hugging Face)
+# 1. Ve a https://huggingface.co/settings/tokens para crear un token con rol "read".
+# 2. Reemplaza <PEGA_TU_TOKEN_HF_AQUÍ> con tu token.
+wget --progress=bar:force --header="Authorization: Bearer <PEGA_TU_TOKEN_HF_AQUÍ>" -O ./ipadapter/ip-adapter_pulid_sdxl_fp16.safetensors https://huggingface.co/huchenlei/ipadapter_pulid/resolve/main/ip-adapter_pulid_sdxl_fp16.safetensors
+
+# Modelo FaceID (se renombra a .bin por compatibilidad con el workflow)
+wget --progress=bar:force -O ./ipadapter/ip-adapter-plus-face_sdxl.bin https://huggingface.co/InvokeAI/ip-adapter-plus-face_sdxl_vit-h/resolve/main/ip-adapter-plus-face_sdxl_vit-h.safetensors
+
+# Modelos de ControlNet
+wget --progress=bar:force -O ./controlnet/control_v11p_sd15_openpose.pth https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11p_sd15_openpose.pth
+wget --progress=bar:force -O ./controlnet/control_v11f1p_sd15_depth.pth https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11f1p_sd15_depth.pth
+wget --progress=bar:force -O ./controlnet/control_v11p_sd15_canny.pth https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11p_sd15_canny.pth
+wget --progress=bar:force -O ./controlnet/control_v11p_sd15_scribble.pth https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11p_sd15_scribble.pth
 3. Verificar la Estructura de Archivos
 Una vez finalizadas las descargas, ejecuta ls -R para listar todos los archivos y carpetas.
-Confirma que la estructura de directorios (checkpoints/, ipadapter/, etc.) se ha creado correctamente dentro de /workspace/test_downloads.
-Esta estructura valida que la lógica de rutas en el script pod_start.sh es correcta.
+Confirma que la estructura de directorios (checkpoints/, ipadapter/, etc.) y los archivos dentro de ellas son correctos.
 4. Limpieza
 Una vez satisfecho con la verificación, puedes terminar y destruir el pod de prueba.
-Los archivos descargados permanecerán en tu Network Volume, listos para ser usados como caché por el endpoint serverless, garantizando un primer arranque casi instantáneo.
+Los archivos descargados permanecerán en tu Network Volume, listos para ser usados como caché por el endpoint serverless.
