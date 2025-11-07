@@ -1,26 +1,26 @@
 # === morpheus_resources_image.txt ===
 # Dependencias para el Microservicio de Imágenes de Morpheus AI Suite
+# Versión 2.0 - URLs Verificadas
 
 # --- Repositorios Git (Nodos Personalizados para ComfyUI) ---
 # Gestor de paquetes y nodos para ComfyUI. Esencial.
 GIT,ComfyUI-Manager,https://github.com/ltdrdata/ComfyUI-Manager
-# Nodo para transferencia de identidad facial (PID).
-GIT,ComfyUI-PuLID,https://github.com/space-nuko/PuLID_ComfyUI
+# [CORREGIDO] Nodo para transferencia de identidad facial (PID) - Fork verificado.
+GIT,ComfyUI-PuLID,https://github.com/ceutaseguridad/PuLID_ComfyUI
 # Nodos para ControlNet avanzado, necesario para el control de composición.
 GIT,ComfyUI-Advanced-ControlNet,https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git
 
-
 # --- Modelos de IA (Hugging Face / Civitai) ---
 # Checkpoint principal para generación de imágenes fotorrealistas.
-URL_AUTH,checkpoints/talmendoxl_v11_beta.safensors,https://civitai.com/api/download/models/131960
+URL_AUTH,checkpoints/talmendoxl_v11_beta.safetensors,https://civitai.com/api/download/models/131960
 
-# Modelo de Identidad para PuLID, usado en la transferencia de identidad.
-URL_AUTH,ipadapter/ip-adapter_pulid_sdxl_fp16.safenetensors,https://civitai.com/api/download/models/862920?type=Model&format=SafeTensor&size=full&fp=fp16
+# [CORREGIDO] Modelo de Identidad para PuLID - URL de Hugging Face verificada.
+URL_AUTH,ipadapter/ip-adapter_pulid_sdxl_fp16.safetensors,https://huggingface.co/huchenlei/ipadapter_pulid/resolve/main/ip-adapter_pulid_sdxl_fp16.safetensors
 
-# Modelo de Identidad para el entrenamiento de PID (FaceID).
+# [VERIFICADO] Modelo de Identidad para el entrenamiento de PID (FaceID). Se usa el .bin para coincidir con el workflow.
 MODEL,ipadapter,h94/IP-Adapter,ip-adapter-plus-face_sdxl.bin
 
-# Modelos de ControlNet para guiar la composición.
+# [VERIFICADO] Modelos de ControlNet para guiar la composición.
 MODEL,controlnet,lllyasviel/ControlNet-v1-1,control_v11p_sd15_openpose.pth
 MODEL,controlnet,lllyasviel/ControlNet-v1-1,control_v11f1p_sd15_depth.pth
 MODEL,controlnet,lllyasviel/ControlNet-v1-1,control_v11p_sd15_canny.pth
