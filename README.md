@@ -1,6 +1,6 @@
 # Guía de Despliegue del Microservicio de Imágenes en RunPod
 
-**Versión 2.0 (Incluye Configuración de Almacenamiento Persistente)**
+**Versión 2.1 (Aclaraciones sobre Redes y Puertos)**
 
 Este documento detalla el proceso paso a paso para desplegar el microservicio de imágenes de Morpheus AI Suite como un Endpoint Serverless en la plataforma RunPod, incluyendo la configuración del almacenamiento persistente necesario.
 
@@ -21,9 +21,9 @@ Utiliza una plantilla pre-configurada de **ComfyUI** en RunPod, que es configura
 
 ---
 
-## Pasos de Despliegue (Arquitectura Correcta)
+## Pasos de Despliegue
 
-El proceso se divide en dos etapas principales: primero, crear el disco duro de red (Network Volume) donde se guardarán los archivos, y segundo, desplegar el servicio serverless y conectarlo a ese disco.
+El proceso se divide en dos etapas: primero, crear el disco de red (Network Volume) donde se guardarán los archivos, y segundo, desplegar el servicio serverless y conectarlo a ese disco.
 
 ### Paso 1: Crear el Almacenamiento Persistente (Network Volume)
 
@@ -73,36 +73,40 @@ El almacenamiento persistente es **esencial** para que los archivos de entrada (
 
 Una vez que el estado del endpoint en RunPod cambie a **"Active"**, sigue estos pasos:
 
-1.  **Obtener las URLs del Endpoint:**
-    -   Haz clic en tu nuevo endpoint para ver sus detalles y obtener su **ID** (ej: `a1b2c3d4e5f6`).
-    -   Construye las dos URLs necesarias:
-      -   **Worker URL (API):** `https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net`
-      -   **Fileserver URL (Archivos):** `https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net`
-2.  **Actualizar la Configuración Local:**
-    -   Abre el archivo `config.py` en tu proyecto Morpheus.
-    -   Modifica el diccionario `MICROSERVICE_ENDPOINTS` para que los `job_type` `image`, `dataset` y `training` apunten a estas nuevas URLs.
-    ```python
-    # Ejemplo de modificación en config.py
-    MICROSERVICE_ENDPOINTS = {
-        # ...
-        "image": {
-            "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-            "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-        },
-        "dataset": {
-            "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-            "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-        },
-        "training": {
-            "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-            "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-        },
-        # ...
-    }
-    ```
-3.  **Reiniciar y Probar:**
-    -   Reinicia tu aplicación local (Streamlit y Celery).
-    -   Lanza un trabajo desde "Texto a Imagen". Ahora será procesado por tu microservicio, utilizando el almacenamiento persistente que has configurado.
+### 1. Obtener las URLs del Endpoint
+- Haz clic en tu nuevo endpoint para ver sus detalles y obtener su **ID** (ej: `a1b2c3d4e5f6`).
+- Construye las dos URLs necesarias:
+  -   **Worker URL (API):** `https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net`
+  -   **Fileserver URL (Archivos):** `https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net`
 
-```bash
-git clone https://github.com/ceutaseguridad/serverless-img /workspace/morpheus_config && cd /workspace/morpheus_config && chmod +x pod_start.sh && ./pod_start.sh
+### 2. Nota Importante sobre Redes y Puertos
+**No es necesario abrir ni configurar ningún puerto manualmente.** La plataforma RunPod gestiona toda la conectividad de red a través de un proxy seguro.
+
+-   Tu aplicación local se comunica con las URLs de RunPod a través del puerto estándar **HTTPS (443)**, que está permitido por defecto en todas las redes.
+-   El proxy de RunPod recibe estas peticiones y las redirige internamente a los puertos correctos (`8188` para el worker, `8000` para el fileserver) dentro del contenedor.
+-   Toda la complejidad de la red es abstraída por la plataforma.
+
+### 3. Actualizar la Configuración Local
+- Abre el archivo `config.py` en tu proyecto Morpheus.
+- Modifica el diccionario `MICROSERVICE_ENDPOINTS` para que apunte a las URLs que has construido.
+```python
+# Ejemplo de modificación en config.py
+MICROSERVICE_ENDPOINTS = {
+    # ...
+    "image": {
+        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
+        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
+    },
+    "dataset": {
+        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
+        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
+    },
+    "training": {
+        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
+        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
+    },
+    # ...
+}
+4. Reiniciar y Probar
+Reinicia tu aplicación local (Streamlit y Celery).
+Lanza un trabajo desde "Texto a Imagen". Ahora será procesado por tu microservicio, utilizando el almacenamiento persistente que has configurado.```
