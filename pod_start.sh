@@ -1,56 +1,54 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque para el Microservicio de Imágenes de Morpheus AI Suite
+# Script de Arranque v2 (Optimizado con Cacheo) para Morpheus AI Suite
 # ==============================================================================
-# Este script se ejecuta al inicio de un worker de RunPod Serverless.
-# Su propósito es configurar el entorno de ComfyUI descargando los nodos
-# y modelos personalizados necesarios para las tareas de imagen.
+# Este script ahora utiliza el Network Volume montado en /workspace/job_data
+# como un caché persistente para los modelos de IA. Esto reduce drásticamente
+# el tiempo de "arranque en frío" de los workers.
 # ==============================================================================
 
-# --- PREÁMBULO ---
-# 'set -e' asegura que el script falle inmediatamente si cualquier comando devuelve
-# un código de error, lo que ayuda a depurar problemas en los logs de RunPod.
 set -e
 
-echo "=========================================================="
-echo "--- INICIANDO CONFIGURACIÓN DE MORPHEUS (MICROSERVICIO DE IMAGEN) ---"
-echo "=========================================================="
+echo "===================================================================="
+echo "--- INICIANDO CONFIGURACIÓN v2 (CON CACHÉ) DE MORPHEUS (IMG) ---"
+echo "===================================================================="
 
 # --- DEFINICIÓN DE VARIABLES DE DIRECTORIO ---
-# Define las rutas clave dentro del entorno de RunPod para mayor claridad.
 COMFYUI_DIR="/workspace/ComfyUI"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
-CONFIG_SOURCE_DIR="/workspace/morpheus_config" # Directorio donde se clona el repo de GitHub
-WORKFLOWS_DEST_DIR="/workspace/morpheus_lib/workflows" # Directorio donde el worker busca los workflows
+CONFIG_SOURCE_DIR="/workspace/morpheus_config"
+WORKFLOWS_DEST_DIR="/workspace/morpheus_lib/workflows"
 
-# --- PREPARACIÓN DEL ENTORNO ---
-echo "1. Asegurando que los directorios de destino existan..."
+# --- [NUEVO] Directorio de Caché en el Volumen Persistente ---
+# Este directorio reside en el Network Volume que montamos en /workspace/job_data
+CACHE_DIR="/workspace/job_data/model_cache"
+
+echo "1. Asegurando que los directorios de destino y caché existan..."
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${MODELS_DIR}/checkpoints"
 mkdir -p "${MODELS_DIR}/ipadapter"
 mkdir -p "${MODELS_DIR}/controlnet"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
+# Creamos también los subdirectorios correspondientes en el caché
+mkdir -p "${CACHE_DIR}/checkpoints"
+mkdir -p "${CACHE_DIR}/ipadapter"
+mkdir -p "${CACHE_DIR}/controlnet"
 echo "   Directorios listos."
 
-# --- COPIA DE WORKFLOWS ---
-# Copia los archivos de workflow .json desde el repositorio de configuración
-# a la ubicación que el worker de Morpheus espera.
 echo "2. Copiando archivos de workflow .json..."
 cp "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
-echo "   Workflows copiados con éxito a ${WORKFLOWS_DEST_DIR}"
+echo "   Workflows copiados con éxito."
 
-# --- FUNCIÓN DE DESCARGA ROBUSTA ---
-# Función auxiliar para descargar archivos, mostrando el progreso y manejando nombres de archivo.
+# --- FUNCIÓN DE DESCARGA ---
 download_file() {
     local url="$1"
     local dest_path="$2"
     echo "   Descargando desde: ${url}"
-    echo "   Hacia: ${dest_path}"
-    # Usamos wget con opciones para ser silencioso pero mostrar progreso, seguir redirecciones y especificar la salida.
+    echo "   Hacia (caché): ${dest_path}"
     wget --quiet --show-progress --follow-redirects -O "${dest_path}" "${url}"
-    echo "   Descarga completa."
+    echo "   Descarga a caché completa."
 }
 
 # --- PROCESAMIENTO DEL ARCHIVO DE RECURSOS ---
@@ -62,14 +60,12 @@ if [ ! -f "$RESOURCE_FILE" ]; then
     exit 1
 fi
 
-# Leemos el archivo línea por línea, ignorando comentarios y líneas vacías.
 grep -v '^#' "$RESOURCE_FILE" | while IFS=, read -r type name url; do
-    # Limpiamos espacios en blanco de cada variable
     type=$(echo "$type" | xargs)
     name=$(echo "$name" | xargs)
     url=$(echo "$url" | xargs)
 
-    if [ -z "$type" ]; then continue; fi # Omitir líneas vacías
+    if [ -z "$type" ]; then continue; fi
 
     echo "   Procesando entrada: TIPO=[${type}], NOMBRE=[${name}]"
 
@@ -85,45 +81,36 @@ grep -v '^#' "$RESOURCE_FILE" | while IFS=, read -r type name url; do
             fi
             ;;
 
-        URL_AUTH)
-            DEST_FILE="${MODELS_DIR}/${name}"
-            if [ -f "$DEST_FILE" ]; then
-                echo "   -> El modelo '${name}' ya existe. Omitiendo."
-            else
-                echo "   -> Descargando modelo '${name}'..."
-                download_file "${url}" "${DEST_FILE}"
+        URL_AUTH | MODEL)
+            # Unificamos la lógica para todos los modelos que se descargan.
+            if [ "$type" == "URL_AUTH" ]; then
+                MODEL_FOLDER=$(dirname "${name}") # ej: checkpoints/talmendoxl... -> checkpoints
+                FILENAME=$(basename "${name}") # ej: checkpoints/talmendoxl... -> talmendoxl...
+                DOWNLOAD_URL=$url
+            else # Es tipo MODEL
+                # Leemos la línea con el formato correcto para este caso
+                IFS=, read -r _ MODEL_FOLDER HF_REPO FILENAME <<< "$type,$name,$url"
+                MODEL_FOLDER=$(echo "$MODEL_FOLDER" | xargs)
+                HF_REPO=$(echo "$HF_REPO" | xargs)
+                FILENAME=$(echo "$FILENAME" | xargs)
+                DOWNLOAD_URL="https://huggingface.co/${HF_REPO}/resolve/main/${FILENAME}"
             fi
-            ;;
 
-        MODEL)
-            # Formato: MODEL,folder,huggingface_user/repo,filename
-            MODEL_FOLDER=$type # En este caso, 'MODEL' se solapa con el tipo, el folder es el segundo campo.
-            HF_USER_REPO=$name
-            FILENAME=$url
-            MODEL_URL="https://huggingface.co/${HF_USER_REPO}/resolve/main/${FILENAME}"
-            DEST_FILE="${MODELS_DIR}/${MODEL_FOLDER}/${FILENAME}" # ej: /models/controlnet/mi_modelo.pth
-            
-            # Necesitamos re-asignar la variable 'type' (primer campo) al 'folder' (segundo campo)
-            # pero la lectura ya se ha hecho. Una forma más limpia sería:
-            # IFS=, read -r type folder hf_repo filename
-            # Por ahora, usamos el 'type' como el folder.
-            
-            # Corrección: El primer campo es el tipo, el segundo es la carpeta destino.
-            # Vamos a releer la línea con el formato correcto para este caso.
-            IFS=, read -r _ folder hf_repo filename <<< "$type,$name,$url"
-            folder=$(echo "$folder" | xargs)
-            hf_repo=$(echo "$hf_repo" | xargs)
-            filename=$(echo "$filename" | xargs)
-            
-            MODEL_URL="https://huggingface.co/${hf_repo}/resolve/main/${filename}"
-            DEST_FILE="${MODELS_DIR}/${folder}/${filename}"
-            
-            if [ -f "$DEST_FILE" ]; then
-                echo "   -> El modelo '${filename}' ya existe en '${folder}'. Omitiendo."
+            DEST_FILE="${MODELS_DIR}/${MODEL_FOLDER}/${FILENAME}"
+            CACHE_FILE="${CACHE_DIR}/${MODEL_FOLDER}/${FILENAME}"
+
+            if [ -f "$CACHE_FILE" ]; then
+                echo "   -> Modelo '${FILENAME}' encontrado en el caché."
             else
-                echo "   -> Descargando modelo '${filename}' desde Hugging Face..."
-                download_file "${MODEL_URL}" "${DEST_FILE}"
+                echo "   -> Modelo '${FILENAME}' NO encontrado en el caché. Descargando..."
+                # Descargamos el archivo directamente al directorio de caché
+                download_file "${DOWNLOAD_URL}" "${CACHE_FILE}"
             fi
+
+            # Creamos un enlace simbólico desde la ubicación del caché a donde ComfyUI espera el archivo.
+            # 'ln -sf' crea el enlace ('s') y lo sobreescribe si ya existe ('f'). Es seguro ejecutarlo siempre.
+            echo "   -> Creando enlace simbólico: ${DEST_FILE} -> ${CACHE_FILE}"
+            ln -sf "${CACHE_FILE}" "${DEST_FILE}"
             ;;
         *)
             echo "   -> Tipo de recurso desconocido: '${type}'. Omitiendo."
@@ -131,9 +118,6 @@ grep -v '^#' "$RESOURCE_FILE" | while IFS=, read -r type name url; do
     esac
 done
 
-echo "=========================================================="
-echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
-echo "=========================================================="
-
-# La plantilla base de RunPod se encargará ahora de iniciar los servicios
-# necesarios como el servidor de ComfyUI.
+echo "===================================================================="
+echo "--- CONFIGURACIÓN DE MORPHEUS (v2) COMPLETADA CON ÉXITO ---"
+echo "===================================================================="
