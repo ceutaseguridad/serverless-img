@@ -1,6 +1,6 @@
 # Guía de Despliegue del Microservicio de Imágenes en RunPod
 
-**Versión 3.0 (Definitiva con Estrategia de Cacheo y Detalles Completos)**
+**Versión 3.1 (Añadido Proceso de Verificación Manual)**
 
 Este documento detalla el proceso paso a paso para desplegar el microservicio de imágenes de Morpheus AI Suite como un Endpoint Serverless en la plataforma RunPod. Esta guía incluye la configuración del almacenamiento persistente y una estrategia de cacheo de modelos para un rendimiento óptimo.
 
@@ -27,85 +27,77 @@ El script `pod_start.sh` de este repositorio ya implementa esta lógica de cache
 
 ### Paso 1: Crear el Almacenamiento Persistente (Network Volume)
 
-El almacenamiento persistente es **esencial** para el cacheo de modelos y para que los archivos de entrada/salida no se borren cuando los workers se apaguen.
-
-1.  **Navegar a la Sección de Almacenamiento:**
-    -   En el panel de la izquierda, haz clic en `Storage` -> `Network Volumes`.
+1.  **Navegar a `Storage` -> `Network Volumes`**.
 2.  **Crear un Nuevo Volumen:**
-    -   Haz clic en `+ New Volume`.
-    -   **Nombre del Volumen:** `morpheus-microservices-storage` (o un nombre descriptivo similar).
-    -   **Tamaño del Volumen (GB):** Se recomienda empezar con `20` GB. Este tamaño debe ser suficiente para alojar los modelos y los archivos de los trabajos. Se puede redimensionar más tarde.
-    -   **Ubicación (Data Center):** **Importante:** Elige la misma ubicación donde planeas desplegar el endpoint (ej. `US East`) para minimizar la latencia.
-3.  **Confirmar la Creación:**
-    -   Haz clic en `Create Volume`. Ahora tendrás un disco de red listo para ser usado.
+    -   Nombre: `morpheus-microservices-storage`
+    -   Tamaño: `20` GB (o más, para alojar los modelos y los trabajos).
+    -   Ubicación: La misma que la del endpoint.
+3.  **Confirmar la Creación.**
 
 ### Paso 2: Desplegar el Endpoint Serverless
 
-1.  **Navegar a la Sección Serverless:**
-    -   En el panel de la izquierda, haz clic en **Serverless**.
-    -   En la página de `Endpoints`, haz clic en el botón **+ New Endpoint**.
-2.  **Seleccionar la Plantilla:**
-    -   Busca en la lista de plantillas y selecciona **`RunPod ComfyUI`**.
-3.  **Elegir una GPU:**
-    -   Se recomienda **NVIDIA GeForce RTX 4090** para un buen rendimiento.
-4.  **Configurar los Workers:**
-    -   **Max Workers:** `5` (o un número adecuado a la carga esperada).
-    -   **Min Workers:** `0`. **¡Esencial para la eficiencia de costes!** El servicio escalará a cero cuando esté inactivo.
-    -   **Idle Timeout:** `5` (minutos). Un worker se apagará automáticamente tras 5 minutos de inactividad.
-5.  **Enlazar el Volumen de Almacenamiento (Paso Clave):**
-    -   Busca la sección **"Volume Mounts"**.
-    -   Haz clic en `+ Add Mount`.
-    -   **Volume:** En el desplegable, selecciona el volumen que creaste en el Paso 1 (`morpheus-microservices-storage`).
+1.  **Navegar a `Serverless` -> `+ New Endpoint`**.
+2.  **Plantilla:** `RunPod ComfyUI`.
+3.  **GPU:** `NVIDIA GeForce RTX 4090`.
+4.  **Workers:** `Max: 5`, `Min: 0`, `Idle Timeout: 5`.
+5.  **Enlazar Volumen de Almacenamiento:**
+    -   En `Volume Mounts`, haz clic en `+ Add Mount`.
+    -   **Volume:** Selecciona `morpheus-microservices-storage`.
     -   **Mount Path:** Escribe exactamente ` /workspace/job_data`.
-        -   *Explicación:* El `file_server` dentro de la plantilla está programado para guardar todas las subidas y resultados en esta ruta. Nuestro script `pod_start.sh` también usará esta ruta para el caché de modelos.
-6.  **Establecer el Comando de Inicio del Contenedor:**
-    -   Copia y pega el siguiente comando **exactamente como está** en el campo `Container Start Command`:
+6.  **Comando de Inicio del Contenedor:**
     ```bash
     git clone https://github.com/ceutaseguridad/serverless-img /workspace/morpheus_config && cd /workspace/morpheus_config && chmod +x pod_start.sh && ./pod_start.sh
     ```
-7.  **Desplegar:**
-    -   Haz clic en el botón **Deploy**.
-    -   El endpoint pasará a un estado "Initializing". Puedes monitorizar el proceso de arranque en la pestaña `Logs` del endpoint. El primer arranque será más lento mientras se llena el caché de modelos.
+7.  **Desplegar.**
+
+### Paso 3: Conexión con la Aplicación Local
+
+1.  **Obtener las URLs del Endpoint** (Worker: `...-8188...`, Fileserver: `...-8000...`) a partir de su ID.
+2.  **Nota sobre Redes y Puertos:** No es necesario abrir ningún puerto. RunPod gestiona la conectividad a través de un proxy seguro usando el puerto estándar HTTPS (443).
+3.  **Actualizar `config.py`** local con estas URLs para los `job_type` de `image`, `dataset` y `training`.
+4.  **Reiniciar y Probar.**
 
 ---
 
-## Paso 3: Conexión con la Aplicación Local
+## Proceso de Verificación Manual (Opcional pero Recomendado)
 
-Una vez que el estado del endpoint en RunPod cambie a **"Active"**, sigue estos pasos:
+Antes de desplegar el endpoint serverless, puedes verificar manualmente que todas las rutas de descarga y la estructura de directorios son correctas. Este proceso "pre-calienta" el caché, haciendo que el primer arranque del worker serverless sea instantáneo.
 
-### 1. Obtener las URLs del Endpoint
-- Haz clic en tu nuevo endpoint para ver sus detalles y obtener su **ID** (ej: `a1b2c3d4e5f6`).
-- Construye las dos URLs necesarias a partir de este ID:
-  -   **Worker URL (API):** `https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net`
-  -   **Fileserver URL (Archivos):** `https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net`
+### 1. Iniciar un Pod de Prueba
+- Ve a `Community Cloud` o `Secure Cloud` y elige una GPU de bajo coste (ej. RTX 3070).
+- Usa la plantilla **`RunPod Pytorch 2`**.
+- En "Volume Mounts", monta tu volumen `morpheus-microservices-storage` en la ruta `/workspace`.
+- Inicia el pod y conéctate a él vía **SSH**.
 
-### 2. Nota Importante sobre Redes y Puertos
-**No es necesario abrir ni configurar ningún puerto manualmente.** La plataforma RunPod gestiona toda la conectividad de red a través de un proxy seguro.
+### 2. Ejecutar el Script de Descarga
+- Una vez en la terminal SSH del pod, crea un directorio de prueba y entra en él:
+  ```bash
+  mkdir -p /workspace/test_downloads && cd /workspace/test_downloads
+Copia y pega el siguiente bloque de comandos en la terminal para descargar todas las dependencias a tu volumen de red:
+code
+Bash
+# Descargar el archivo de recursos desde GitHub
+wget https://raw.githubusercontent.com/ceutaseguridad/serverless-img/main/morpheus_resources_image.txt
 
--   Tu aplicación local se comunica con las URLs de RunPod a través del puerto estándar **HTTPS (443)**, que está permitido por defecto en todas las redes.
--   El proxy de RunPod recibe estas peticiones y las redirige internamente a los puertos correctos (`8188` para el worker, `8000` para el fileserver) dentro del contenedor.
--   Toda la complejidad de la red es abstraída por la plataforma.
-
-### 3. Actualizar la Configuración Local
-- Abre el archivo `config.py` en tu proyecto Morpheus.
-- Modifica el diccionario `MICROSERVICE_ENDPOINTS` para que apunte a las URLs que has construido. Los `job_type` relevantes para este servicio son `image`, `dataset` y `training`.```python
-# Ejemplo de modificación en config.py
-MICROSERVICE_ENDPOINTS = {
-    # ...
-    "image": {
-        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-    },
-    "dataset": {
-        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-    },
-    "training": {
-        "worker_url": "https://<ID_DEL_ENDPOINT>-8188.proxy.runpod.net",
-        "fileserver_url": "https://<ID_DEL_ENDPOINT>-8000.proxy.runpod.net"
-    },
-    # ...
-}
-4. Reiniciar y Probar
-Reinicia tu aplicación local (Streamlit y Celery).
-Lanza un trabajo desde "Texto a Imagen". Ahora será procesado por tu microservicio optimizado.
+# Leer el archivo y procesar para descargar todo
+grep -v '^#' "morpheus_resources_image.txt" | while IFS=, read -r type name url; do
+    type=$(echo "$type" | xargs); name=$(echo "$name" | xargs); url=$(echo "$url" | xargs)
+    if [ -z "$type" ]; then continue; fi
+    echo "--- Procesando: ${type} | ${name} ---"
+    if [ "$type" == "GIT" ]; then
+        git clone "${url}" "./${name}"
+    elif [ "$type" == "URL_AUTH" ]; then
+        folder=$(dirname "${name}"); mkdir -p "./${folder}"; wget -O "./${name}" "${url}"
+    elif [ "$type" == "MODEL" ]; then
+        IFS=, read -r _ folder hf_repo filename <<< "$type,$name,$url"
+        folder=$(echo "$folder" | xargs); hf_repo=$(echo "$hf_repo" | xargs); filename=$(echo "$filename" | xargs)
+        mkdir -p "./${folder}"; wget -O "./${folder}/${filename}" "https://huggingface.co/${hf_repo}/resolve/main/${filename}"
+    fi
+done
+3. Verificar la Estructura de Archivos
+Una vez finalizadas las descargas, ejecuta ls -R para listar todos los archivos y carpetas.
+Confirma que la estructura de directorios (checkpoints/, ipadapter/, etc.) se ha creado correctamente dentro de /workspace/test_downloads.
+Esta estructura valida que la lógica de rutas en el script pod_start.sh es correcta.
+4. Limpieza
+Una vez satisfecho con la verificación, puedes terminar y destruir el pod de prueba.
+Los archivos descargados permanecerán en tu Network Volume, listos para ser usados como caché por el endpoint serverless, garantizando un primer arranque casi instantáneo.
