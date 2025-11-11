@@ -1,38 +1,33 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v12 (Infalible) para Morpheus AI Suite
-# Instala todas las dependencias, utiliza un caché pre-poblado y
-# soluciona la importación del handler de forma definitiva.
-# =================================.=============================================
+# Script de Arranque v13 (Verificado) para Morpheus AI Suite
+# ==============================================================================
 
 set -e
 set -o pipefail
 
 # --- FASE 1: INSTALACIÓN COMPLETA DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
-
 apt-get update && apt-get install -y curl
-echo "[MORPHEUS-STARTUP]    -> Dependencias de sistema (curl) instaladas."
-
-# [CORRECCIÓN] Añadimos 'timm' a la lista de dependencias de Python.
 pip install insightface onnxruntime-gpu facexlib timm
-echo "[MORPHEUS-STARTUP]    -> Dependencias de Python completas instaladas."
-
+echo "[MORPHEUS-STARTUP]    -> Dependencias completas instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v12 (INFALIBLE)    ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v13 (VERIFICADO)   ---"
 echo "====================================================================="
 
 # --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
-COMFYUI_DIR="/comfyui"
 CONFIG_SOURCE_DIR="/workspace/morpheus_config"
-# [CORRECCIÓN DEFINITIVA] Copiamos el handler original al mismo directorio que el nuestro.
-# Esto elimina cualquier problema de PYTHONPATH o de directorios de trabajo.
-cp /comfy_handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
+
+# [VERIFICADO] El handler original se llama 'handler.py' y está en la raíz.
+# Lo copiamos a nuestro directorio de código y lo renombramos a 'comfy_handler.py'
+# para que el 'import' en nuestro script funcione.
+cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler original copiado para asegurar la importación."
 
-# ... (el resto de la configuración de rutas es igual) ...
+# ... (el resto del script no necesita cambios) ...
+COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
@@ -50,7 +45,6 @@ echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
 # --- FASE 3: ENLACE SIMBÓLICO DESDE EL CACHÉ ---
 echo "[MORPHEUS-STARTUP] FASE 3: Creando enlaces simbólicos..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
-    # ... (bucle sin cambios)
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
     case "$type" in
@@ -72,25 +66,23 @@ python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando..."
 
 # Health Check
-TIMEOUT=120; ELAPSED=0
+TIMEOUT=180; ELAPSED=0 # Aumentamos el timeout a 3 minutos por si acaso la carga inicial es lenta
 while true; do
     if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then
-        echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo!"; break
+        echo; echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo!"; break
     else
-        echo -n "." # Imprime un punto para mostrar que sigue esperando
+        echo -n "."
     fi
     if [ "$ELAPSED" -ge "$TIMEOUT" ]; then echo "¡ERROR FATAL! ComfyUI no respondió."; exit 1; fi
     sleep 3; ELAPSED=$((ELAPSED + 3))
 done
 
-echo
 echo "====================================================================="
 echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
 echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
-# Ahora ejecutamos desde el directorio del código clonado.
 cd "${CONFIG_SOURCE_DIR}"
 exec python3 -u morpheus_handler.py
 wait -n
