@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v10 (Definitivo) para Morpheus AI Suite
-# Instala todas las dependencias (sistema y Python), utiliza un caché
-# pre-poblado y corrige el contexto de ejecución para el handler.
+# Script de Arranque v11 (Final y Completo) para Morpheus AI Suite
+# Instala todas las dependencias, utiliza un caché pre-poblado y
+# corrige el PYTHONPATH para una ejecución robusta.
 # ==============================================================================
 
 set -e
@@ -17,14 +17,14 @@ echo "[MORPHEUS-STARTUP]    -> Instalando 'curl' para el health check..."
 apt-get update && apt-get install -y curl
 
 # 1.2: Dependencias de Python (pip) para Nodos Personalizados
-echo "[MORPHEUS-STARTUP]    -> Instalando dependencias de Python (insightface y onnxruntime-gpu)..."
-# [CORRECCIÓN] Instalamos 'onnxruntime-gpu' explícitamente, que es requerido por 'insightface'
-pip install insightface onnxruntime-gpu
+echo "[MORPHEUS-STARTUP]    -> Instalando dependencias de Python (insightface, onnxruntime-gpu, facexlib)..."
+# [CORRECCIÓN] Añadimos 'facexlib', otra dependencia crucial para PuLID.
+pip install insightface onnxruntime-gpu facexlib
 
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v10 (DEFINITIVO)   ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v11 (FINAL)        ---"
 echo "====================================================================="
 
 # --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
@@ -43,16 +43,15 @@ if [ ! -d "$CACHE_DIR" ]; then
     echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El directorio de caché '${CACHE_DIR}' no se encuentra."
     exit 1
 fi
-echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado en '${CACHE_DIR}'."
+echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado."
 
 mkdir -p "${CUSTOM_NODES_DIR}" "${MODELS_DIR}" "${WORKFLOWS_DEST_DIR}"
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Estructura de directorios y workflows lista."
 
 # --- FASE 3: ENLACE SIMBÓLICO DESDE EL CACHÉ ---
-echo "[MORPHEUS-STARTUP] FASE 3: Creando enlaces simbólicos desde el caché..."
+echo "[MORPHEUS-STARTUP] FASE 3: Creando enlaces simbólicos..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
-    # ... (bucle sin cambios)
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
     case "$type" in
@@ -66,7 +65,7 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
             ;;
     esac
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
-echo "[MORPHEUS-STARTUP]    -> Enlaces simbólicos completados."
+echo "[MORPHEUS-STARTUP]    -> Enlaces completados."
 
 # --- FASE 4: INICIO DE SERVICIOS ---
 echo "[MORPHEUS-STARTUP] FASE 4: Iniciando servicios..."
@@ -92,12 +91,11 @@ echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
-# [CORRECCIÓN DEFINITIVA] Cambiamos al directorio raíz ANTES de ejecutar el script.
-# Esto asegura que el directorio actual (/) esté en el PYTHONPATH,
-# permitiendo que 'morpheus_handler.py' encuentre e importe 'comfy_handler.py'.
-cd /
+# [CORRECCIÓN DEFINITIVA] Añadimos el directorio raíz (/) al PYTHONPATH.
+# Este es el método más robusto para asegurar que Python encuentre 'comfy_handler.py'.
+export PYTHONPATH=/:$PYTHONPATH
 
-echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus desde el directorio raíz..."
+echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
 exec python3 -u "${CONFIG_SOURCE_DIR}/morpheus_handler.py"
 wait -n
 exit $?
