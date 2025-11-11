@@ -1,15 +1,22 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v6 (Final) para Morpheus AI Suite
-# Utiliza un caché de modelos y nodos pre-poblado en un Volumen de Red.
+# Script de Arranque v7 (Final, con Autoinstalación) para Morpheus AI Suite
+# Instala dependencias, utiliza un caché pre-poblado y se auto-verifica.
 # ==============================================================================
 
 set -e
 set -o pipefail
 
+# --- [INICIO DE LA CORRECCIÓN FINAL] INSTALACIÓN DE DEPENDENCIAS ---
+# La imagen base de RunPod es mínima. Instalamos 'curl' que es necesario para el health check.
+echo "[MORPHEUS-STARTUP] Actualizando lista de paquetes e instalando dependencias..."
+apt-get update && apt-get install -y curl
+echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas (curl)."
+# --- [FIN DE LA CORRECCIÓN FINAL] ---
+
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v6 (FINAL)         ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v7 (FINAL)         ---"
 echo "====================================================================="
 
 # --- DEFINICIÓN DE VARIABLES DE DIRECTORIO ---
@@ -19,9 +26,8 @@ MODELS_DIR="${COMFYUI_DIR}/models"
 CONFIG_SOURCE_DIR="/workspace/morpheus_config"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 
-# --- [CORRECCIÓN FINAL] RUTA AL VOLUMEN Y AL CACHÉ PRE-POBLADO ---
+# --- RUTA AL VOLUMEN Y AL CACHÉ PRE-POBLADO ---
 NETWORK_VOLUME_PATH="/runpod-volume"
-# Esta es la nueva ruta que coincide con tu carpeta renombrada.
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
 
@@ -46,7 +52,7 @@ echo "[MORPHEUS-STARTUP] 3. Copiando archivos de workflow .json..."
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
 
-# --- [CORRECCIÓN FINAL] ENLACE SIMBÓLICO DE MODELOS Y NODOS ---
+# --- ENLACE SIMBÓLICO DE MODELOS Y NODOS ---
 echo "[MORPHEUS-STARTUP] 4. Creando enlaces simbólicos desde el caché al contenedor..."
 
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
@@ -57,7 +63,6 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
 
     case "$type" in
         GIT)
-            # Para los nodos, enlazamos el directorio completo desde el caché.
             SOURCE_PATH="${CACHE_DIR}/${name}"
             DEST_PATH="${CUSTOM_NODES_DIR}/${name}"
             if [ -d "$SOURCE_PATH" ]; then
@@ -68,12 +73,10 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
             fi
             ;;
         URL_AUTH)
-            # Para los modelos, enlazamos las carpetas de modelos desde el caché.
             MODEL_FOLDER=$(dirname "${name}")
             SOURCE_PATH="${CACHE_DIR}/${MODEL_FOLDER}"
             DEST_PATH="${MODELS_DIR}/${MODEL_FOLDER}"
             if [ -d "$SOURCE_PATH" ]; then
-                # Creamos el directorio base en el contenedor y luego enlazamos el contenido.
                 mkdir -p "$(dirname "${DEST_PATH}")"
                 ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"
                 echo "[MORPHEUS-STARTUP]      -> Enlace simbólico para la carpeta de modelos '${MODEL_FOLDER}' creado."
@@ -82,8 +85,7 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
             fi
             ;;
     esac
-done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++') # awk para procesar cada tipo de carpeta una sola vez
-
+done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
 
 # --- INICIO DE SERVIDORES ---
 echo "[MORPHEUS-STARTUP] 5. Iniciando servicios en segundo plano..."
@@ -107,7 +109,7 @@ while true; do
 done
 
 echo "====================================================================="
-echo "--- CONFIGURACIÓN DE MORPHEUS (v6) COMPLETADA CON ÉXITO ---"
+echo "--- CONFIGURACIÓN DE MORPHEUS (v7) COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
