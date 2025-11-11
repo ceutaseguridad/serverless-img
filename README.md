@@ -103,9 +103,14 @@ Seguir este manual garantiza un despliegue rápido, eficiente y verificado.
 
 1.  Copia y pega el siguiente comando en el campo `Container Start Command`.
     ```bash
-    git clone https://github.com/ceutaseguridad/serverless-img /workspace/morpheus_config && cd /workspace/morpheus_config && chmod +x pod_start.sh && ./pod_start.sh
-    ```
-    -   *Explicación:* Aunque los modelos ya están en el caché, este script sigue siendo necesario. Ahora se ejecutará muy rápido: clonará los nodos (pequeños), encontrará los modelos en el caché y creará los enlaces simbólicos instantáneamente.
+    set -e && \
+echo "--- [MORPHEUS DEBUG] Iniciando comando de arranque ---" && \
+git clone https://github.com/ceutaseguridad/serverless-img.git && \
+cd serverless-img && \
+echo "--- [MORPHEUS DEBUG] Repositorio clonado. Contenido del directorio: ---" && \
+ls -l && \
+echo "--- [MORPHEUS DEBUG] Intentando iniciar el handler de Python... ---" && \
+python -u morpheus_handler.py
 
 ### Paso 2.4: Desplegar y Conectar
 
