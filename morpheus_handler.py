@@ -4,7 +4,11 @@ import os
 import json
 import runpod
 from runpod.serverless.utils.rp_validator import validate
-import comfy_handler # Importamos el handler original de la plantilla
+
+# Importamos el handler original de la plantilla. 
+# Asumimos que está en un archivo llamado 'comfy_handler.py' en la plantilla base.
+# Si el nombre es diferente (ej. 'handler.py'), ajústalo aquí.
+import comfy_handler 
 
 # Definimos el esquema de validación para el input que esperamos
 INPUT_SCHEMA = {
@@ -27,21 +31,22 @@ def _prepare_comfyui_prompt(job_input):
     params = job_input['params']
 
     # La plantilla de RunPod ComfyUI copia los workflows a /comfyui/workflows
-    workflow_path = f"/comfyui/workflows/{workflow_name}.json"
+    # Pero nuestro pod_start.sh los copia a /runpod-volume/morpheus_lib/workflows
+    workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
 
     if not os.path.exists(workflow_path):
         raise FileNotFoundError(f"El archivo de workflow '{workflow_path}' no fue encontrado dentro del worker.")
 
     with open(workflow_path, 'r') as f:
-        prompt = json.load(f)
+        prompt_template = f.read()
 
     # Reemplazamos los placeholders
-    prompt_str = json.dumps(prompt)
+    final_workflow_str = prompt_template
     for key, value in params.items():
-        placeholder = f"__param:{key}__"
-        prompt_str = prompt_str.replace(f'"{placeholder}"', json.dumps(value))
+        placeholder = f'"__param:{key}__"'
+        final_workflow_str = final_workflow_str.replace(placeholder, json.dumps(value))
     
-    final_prompt = json.loads(prompt_str)
+    final_prompt = json.loads(final_workflow_str)
     return final_prompt
 
 def morpheus_handler(job):
@@ -66,7 +71,7 @@ def morpheus_handler(job):
     comfy_job = {
         "input": {
             "prompt": final_prompt,
-            "api_name": job_input['workflow_name']
+            "api_name": job_input['workflow_name'] # api_name puede ser opcional, pero lo mantenemos por si acaso
         }
     }
 
