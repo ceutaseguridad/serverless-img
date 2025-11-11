@@ -1,4 +1,4 @@
-# morpheus_handler.py (Versión de Depuración de Output)
+# morpheus_handler.py (Versión 15 - Manejo de Generador)
 
 import os
 import json
@@ -6,7 +6,6 @@ import runpod
 from runpod.serverless.utils.rp_validator import validate
 import comfy_handler 
 
-# ... (INPUT_SCHEMA y _prepare_comfyui_prompt no cambian) ...
 INPUT_SCHEMA = {
     'workflow_name': { 'type': str, 'required': True },
     'params': { 'type': dict, 'required': True }
@@ -27,16 +26,8 @@ def _prepare_comfyui_prompt(job_input):
     return json.loads(final_workflow_str)
 
 def _reformat_comfyui_output(comfy_output):
-    # --- INICIO DE LA SECCIÓN DE DEBUG ---
     print("--- DENTRO DE _reformat_comfyui_output ---")
-    print(f"DEBUG: Tipo de dato recibido: {type(comfy_output)}")
-    try:
-        # Intentamos imprimirlo como JSON para ver su estructura
-        print(f"DEBUG: Contenido recibido (json):\n{json.dumps(comfy_output, indent=2)}")
-    except Exception as e:
-        # Si no es JSON, lo imprimimos como string
-        print(f"DEBUG: Contenido recibido (no es JSON, como string): {comfy_output}")
-    # --- FIN DE LA SECCIÓN DE DEBUG ---
+    print(f"DEBUG: Contenido recibido para reformatear (tipo {type(comfy_output)}):\n{json.dumps(comfy_output, indent=2)}")
 
     if not isinstance(comfy_output, dict) or 'error' in comfy_output:
         return comfy_output
@@ -56,7 +47,7 @@ def _reformat_comfyui_output(comfy_output):
     return {"error": "El workflow de ComfyUI no produjo ninguna imagen."}
 
 def morpheus_handler(job):
-    print("--- INICIO DE MORPHEUS_HANDLER ---")
+    print("--- INICIO DE MORPHEUS_HANDLER (v15) ---")
     try:
         validated_input = validate(job['input'], INPUT_SCHEMA)
         if 'errors' in validated_input:
@@ -69,16 +60,25 @@ def morpheus_handler(job):
 
         comfy_job = { "input": { "prompt": final_prompt, "api_name": job_input['workflow_name'] } }
 
-        print("DEBUG: Llamando a comfy_handler.handler...")
-        result = comfy_handler.handler(comfy_job)
-        print("DEBUG: comfy_handler.handler ha devuelto un resultado.")
+        print("DEBUG: Llamando y consumiendo el generador de comfy_handler.handler...")
+        # [SOLUCIÓN] Consumimos el generador para obtener todos sus resultados en una lista.
+        result_generator = comfy_handler.handler(comfy_job)
+        result_list = list(result_generator)
         
-        # El resultado se pasará a nuestra función de reformateo que ahora tiene prints
-        return _reformat_comfyui_output(result)
+        print(f"DEBUG: Generador consumido. Se obtuvieron {len(result_list)} resultados.")
+
+        if not result_list:
+            return {"error": "El handler de ComfyUI no devolvió ningún resultado."}
+
+        # El resultado final del trabajo es el último elemento de la lista.
+        final_result = result_list[-1]
+        print("DEBUG: Resultado final extraído del generador.")
+        
+        return _reformat_comfyui_output(final_result)
 
     except Exception as e:
         print(f"ERROR FATAL en morpheus_handler: {e}")
         return {"error": f"Error inesperado en morpheus_handler: {str(e)}"}
 
-print("--- MORPHEUS_HANDLER.PY CARGADO, INICIANDO SERVIDOR RUNPOD ---")
+print("--- MORPHEUS_HANDLER.PY (v15) CARGADO, INICIANDO SERVIDOR RUNPOD ---")
 runpod.serverless.start({"handler": morpheus_handler})
