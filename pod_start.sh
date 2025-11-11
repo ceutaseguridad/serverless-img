@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v13 (Verificado) para Morpheus AI Suite
+# Script de Arranque v14 (Impecable) para Morpheus AI Suite
 # ==============================================================================
 
 set -e
@@ -10,23 +10,19 @@ set -o pipefail
 # --- FASE 1: INSTALACIÓN COMPLETA DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 apt-get update && apt-get install -y curl
-pip install insightface onnxruntime-gpu facexlib timm
+# [CORRECCIÓN FINAL] Añadimos 'ftfy', la última dependencia descubierta para PuLID.
+pip install insightface onnxruntime-gpu facexlib timm ftfy
 echo "[MORPHEUS-STARTUP]    -> Dependencias completas instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v13 (VERIFICADO)   ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v14 (IMPECABLE)    ---"
 echo "====================================================================="
 
 # --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
 CONFIG_SOURCE_DIR="/workspace/morpheus_config"
-
-# [VERIFICADO] El handler original se llama 'handler.py' y está en la raíz.
-# Lo copiamos a nuestro directorio de código y lo renombramos a 'comfy_handler.py'
-# para que el 'import' en nuestro script funcione.
 cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler original copiado para asegurar la importación."
 
-# ... (el resto del script no necesita cambios) ...
 COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
@@ -66,7 +62,7 @@ python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando..."
 
 # Health Check
-TIMEOUT=180; ELAPSED=0 # Aumentamos el timeout a 3 minutos por si acaso la carga inicial es lenta
+TIMEOUT=180; ELAPSED=0
 while true; do
     if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then
         echo; echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo!"; break
