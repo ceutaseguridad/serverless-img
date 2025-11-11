@@ -168,11 +168,14 @@ else
     echo "[MORPHEUS-STARTUP]    -> ADVERTENCIA: No se encontró 'rp_file_server.py' en la raíz del volumen. No se inició el servidor de archivos."
 fi
 
+
 echo "===================================================================="
-echo "--- [MORPHEUS-STARTUP] CONFIGURACIÓN COMPLETADA CON ÉXITO        ---"
-echo "---                    El worker está listo para recibir trabajos. ---"
+echo "--- CONFIGURACIÓN DE MORPHEUS (v4) COMPLETADA CON ÉXITO ---"
 echo "===================================================================="
 
+echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
+# Esta es la nueva línea que ejecuta nuestro handler, el cual se encargará de todo.
+exec python3 -u /workspace/morpheus_config/morpheus_handler.py
 # Mantener el script en ejecución para que el contenedor no se cierre mientras
 # los procesos en segundo plano están activos.
 wait -n
