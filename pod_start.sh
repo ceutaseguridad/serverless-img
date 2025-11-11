@@ -1,26 +1,16 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v4 (Robusto y Depurable) para Morpheus AI Suite
-# ==============================================================================
-# OBJETIVO:
-# 1. Validar que el entorno (volumen de red, config) está presente.
-# 2. Instalar nodos personalizados de ComfyUI que no estén en el caché.
-# 3. Comprobar la existencia de modelos en un caché pre-calentado.
-# 4. Crear enlaces simbólicos desde el caché a las carpetas de ComfyUI.
-# 5. Si un modelo NO está en el caché (fallback), intentar descargarlo.
-# 6. Iniciar los servidores de ComfyUI y de archivos.
+# Script de Arranque v6 (Final) para Morpheus AI Suite
+# Utiliza un caché de modelos y nodos pre-poblado en un Volumen de Red.
 # ==============================================================================
 
-# --- CONFIGURACIÓN DE SEGURIDAD Y MANEJO DE ERRORES ---
-# -e: Salir inmediatamente si un comando falla.
-# -o pipefail: El código de salida de una tubería es el del último comando que falló.
 set -e
 set -o pipefail
 
-echo "===================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v4 (ROBUSTA)      ---"
-echo "===================================================================="
+echo "====================================================================="
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v6 (FINAL)         ---"
+echo "====================================================================="
 
 # --- DEFINICIÓN DE VARIABLES DE DIRECTORIO ---
 COMFYUI_DIR="/workspace/ComfyUI"
@@ -28,180 +18,99 @@ CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 CONFIG_SOURCE_DIR="/workspace/morpheus_config"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
-WORKFLOWS_DEST_DIR="/runpod-volume/morpheus_lib/workflows" # Directorio persistente para workflows
 
-# --- RUTA CRÍTICA AL CACHÉ PRE-CALENTADO EN EL VOLUMEN DE RED ---
-CACHE_DIR="/runpod-volume/model_cache"
+# --- [CORRECCIÓN FINAL] RUTA AL VOLUMEN Y AL CACHÉ PRE-POBLADO ---
+NETWORK_VOLUME_PATH="/runpod-volume"
+# Esta es la nueva ruta que coincide con tu carpeta renombrada.
+CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
+WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
 
-# --- VERIFICACIONES INICIALES (SANITY CHECKS) ---
+# --- VERIFICACIONES INICIALES ---
 echo "[MORPHEUS-STARTUP] 1. Realizando verificaciones del entorno..."
 
-if [ ! -d "$CONFIG_SOURCE_DIR" ]; then
-    echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El directorio de configuración '${CONFIG_SOURCE_DIR}' no existe. ¿Falló el 'git clone' en el comando de inicio?"
-    exit 1
-fi
-
 if [ ! -d "$CACHE_DIR" ]; then
-    echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El directorio de caché '${CACHE_DIR}' no se encuentra. ¿Se montó correctamente el Volumen de Red?"
+    echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El directorio de caché '${CACHE_DIR}' no se encuentra. ¿Se montó y renombró correctamente la carpeta en el Volumen de Red?"
     exit 1
 fi
+echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado en '${CACHE_DIR}'."
 
-if [ ! -f "$RESOURCE_FILE" ]; then
-    echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! No se encontró el archivo de recursos en '${RESOURCE_FILE}'."
-    exit 1
-fi
-echo "[MORPHEUS-STARTUP]    -> Verificaciones superadas. Entorno detectado correctamente."
-
-# --- CREACIÓN DE LA ESTRUCTURA DE DIRECTORIOS ---
+# --- CREACIÓN DE LA ESTRUCTURA DE DIRECTORIOS NECESARIA ---
 echo "[MORPHEUS-STARTUP] 2. Asegurando que la estructura de directorios de ComfyUI exista..."
 mkdir -p "${CUSTOM_NODES_DIR}"
-mkdir -p "${MODELS_DIR}/checkpoints"
-mkdir -p "${MODELS_DIR}/ipadapter"
-mkdir -p "${MODELS_DIR}/controlnet"
+mkdir -p "${MODELS_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
 echo "[MORPHEUS-STARTUP]    -> Estructura de directorios lista."
 
 # --- COPIA DE WORKFLOWS ---
-echo "[MORPHEUS-STARTUP] 3. Copiando archivos de workflow .json a '${WORKFLOWS_DEST_DIR}'..."
+echo "[MORPHEUS-STARTUP] 3. Copiando archivos de workflow .json..."
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
 
-# --- FUNCIÓN DE DESCARGA (FALLBACK) ---
-download_file() {
-    local url="$1"
-    local dest_path="$2"
-    local headers=()
+# --- [CORRECCIÓN FINAL] ENLACE SIMBÓLICO DE MODELOS Y NODOS ---
+echo "[MORPHEUS-STARTUP] 4. Creando enlaces simbólicos desde el caché al contenedor..."
 
-    # Si la URL es de Hugging Face y la variable de entorno HF_TOKEN existe, la usamos.
-    if [[ "$url" == *"huggingface.co"* ]] && [ -n "$HF_TOKEN" ]; then
-        echo "[MORPHEUS-STARTUP]      -> Usando token de Hugging Face para la descarga."
-        headers+=("--header=Authorization: Bearer ${HF_TOKEN}")
-    else
-        echo "[MORPHEUS-STARTUP]      -> Descargando sin token de autenticación."
-    fi
-
-    echo "[MORPHEUS-STARTUP]      -> Descargando desde: ${url}"
-    echo "[MORPHEUS-STARTUP]      -> Hacia (caché): ${dest_path}"
-    
-    # Asegurarse que el directorio de destino en el caché existe
-    mkdir -p "$(dirname "${dest_path}")"
-    
-    wget --quiet --show-progress --follow-redirects "${headers[@]}" -O "${dest_path}" "${url}"
-    echo "[MORPHEUS-STARTUP]      -> Descarga a caché completa."
-}
-
-# --- PROCESAMIENTO DE DEPENDENCIAS ---
-echo "[MORPHEUS-STARTUP] 4. Procesando 'morpheus_resources_image.txt' para instalar dependencias..."
-
-# Leemos el archivo línea por línea para evitar problemas con espacios o caracteres especiales.
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
-    # Ignorar líneas en blanco o comentarios
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
+    type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
 
-    # Limpiar espacios en blanco
-    type=$(echo "$type" | xargs)
-    name=$(echo "$name" | xargs)
-    url=$(echo "$url" | xargs)
-    
-    echo "[MORPHEUS-STARTUP]    -> Procesando: TIPO=[${type}], NOMBRE=[${name}]"
+    echo "[MORPHEUS-STARTUP]    -> Procesando: [${type}] ${name}"
 
     case "$type" in
         GIT)
-            DEST_DIR="${CUSTOM_NODES_DIR}/${name}"
-            if [ -d "$DEST_DIR" ]; then
-                echo "[MORPHEUS-STARTUP]      -> El nodo '${name}' ya existe. Omitiendo clonación."
+            # Para los nodos, enlazamos el directorio completo desde el caché.
+            SOURCE_PATH="${CACHE_DIR}/${name}"
+            DEST_PATH="${CUSTOM_NODES_DIR}/${name}"
+            if [ -d "$SOURCE_PATH" ]; then
+                ln -sf "${SOURCE_PATH}" "${DEST_PATH}"
+                echo "[MORPHEUS-STARTUP]      -> Enlace simbólico para el nodo '${name}' creado."
             else
-                echo "[MORPHEUS-STARTUP]      -> Clonando nodo '${name}'..."
-                git clone --depth 1 "${url}" "${DEST_DIR}"
-                echo "[MORPHEUS-STARTUP]      -> Clonación completada."
+                echo "[MORPHEUS-STARTUP]      -> ADVERTENCIA: No se encontró el directorio del nodo '${name}' en el caché. Omitiendo."
             fi
             ;;
-        URL_AUTH | MODEL)
-            if [ "$type" == "URL_AUTH" ]; then
-                MODEL_FOLDER=$(dirname "${name}")
-                FILENAME=$(basename "${name}")
-                DOWNLOAD_URL=$url
+        URL_AUTH)
+            # Para los modelos, enlazamos las carpetas de modelos desde el caché.
+            MODEL_FOLDER=$(dirname "${name}")
+            SOURCE_PATH="${CACHE_DIR}/${MODEL_FOLDER}"
+            DEST_PATH="${MODELS_DIR}/${MODEL_FOLDER}"
+            if [ -d "$SOURCE_PATH" ]; then
+                # Creamos el directorio base en el contenedor y luego enlazamos el contenido.
+                mkdir -p "$(dirname "${DEST_PATH}")"
+                ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"
+                echo "[MORPHEUS-STARTUP]      -> Enlace simbólico para la carpeta de modelos '${MODEL_FOLDER}' creado."
             else
-                # Este bloque es para el formato antiguo, lo mantenemos por compatibilidad.
-                IFS=, read -r _ MODEL_FOLDER HF_REPO FILENAME <<< "$type,$name,$url"
-                MODEL_FOLDER=$(echo "$MODEL_FOLDER" | xargs); HF_REPO=$(echo "$HF_REPO" | xargs); FILENAME=$(echo "$FILENAME" | xargs)
-                DOWNLOAD_URL="https://huggingface.co/${HF_REPO}/resolve/main/${FILENAME}"
+                echo "[MORPHEUS-STARTUP]      -> ADVERTENCIA: No se encontró la carpeta '${MODEL_FOLDER}' en el caché. Omitiendo."
             fi
-            
-            DEST_FILE="${MODELS_DIR}/${MODEL_FOLDER}/${FILENAME}"
-            CACHE_FILE="${CACHE_DIR}/${MODEL_FOLDER}/${FILENAME}"
-
-            echo "[MORPHEUS-STARTUP]      -> Buscando en caché: ${CACHE_FILE}"
-            
-            if [ -f "$CACHE_FILE" ]; then
-                echo "[MORPHEUS-STARTUP]      -> ENCONTRADO. El modelo '${FILENAME}' existe en el caché."
-            else
-                echo "[MORPHEUS-STARTUP]      -> NO ENCONTRADO. El modelo '${FILENAME}' no está en el caché. Intentando descarga (fallback)..."
-                download_file "${DOWNLOAD_URL}" "${CACHE_FILE}"
-            fi
-            
-            echo "[MORPHEUS-STARTUP]      -> Creando enlace simbólico: ${DEST_FILE} -> ${CACHE_FILE}"
-            ln -sf "${CACHE_FILE}" "${DEST_FILE}"
-            echo "[MORPHEUS-STARTUP]      -> Enlace creado."
-            ;;
-        *)
-            echo "[MORPHEUS-STARTUP]    -> TIPO DE RECURSO DESCONOCIDO: '${type}'. Omitiendo."
             ;;
     esac
-done < <(grep -v '^#' "$RESOURCE_FILE" | grep -v '^[[:space:]]*$')
+done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++') # awk para procesar cada tipo de carpeta una sola vez
 
 
 # --- INICIO DE SERVIDORES ---
 echo "[MORPHEUS-STARTUP] 5. Iniciando servicios en segundo plano..."
 
-# Iniciar el servidor de la API de ComfyUI en segundo plano
 python3 /workspace/ComfyUI/main.py --listen --port 8188 &
-echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado en el puerto 8188. Esperando a que esté listo..."
+echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando a que esté listo..."
 
-# --- [INICIO DE LA CORRECCIÓN] HEALTH CHECK ---
-# Esperamos un máximo de 90 segundos a que la API de ComfyUI responda correctamente.
-TIMEOUT=90
-ELAPSED=0
+# HEALTH CHECK
+TIMEOUT=90; ELAPSED=0
 while true; do
-    # Usamos curl para obtener el código de estado HTTP. La URL /object_info es ligera y buena para health checks.
     STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8188/object_info)
-    
     if [ "$STATUS_CODE" -eq 200 ]; then
-        echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo! (Código 200 OK)"
-        break
+        echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo!"; break
     else
         echo "[MORPHEUS-STARTUP]    -> Esperando a ComfyUI... (Estado actual: $STATUS_CODE)"
     fi
-    
     if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-        echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El servidor de ComfyUI no respondió en ${TIMEOUT} segundos."
-        exit 1
+        echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! ComfyUI no respondió en ${TIMEOUT}s."; exit 1
     fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
+    sleep 2; ELAPSED=$((ELAPSED + 2))
 done
-# --- [FIN DE LA CORRECCIÓN] ---
 
-# Iniciar el servidor de archivos de RunPod (si existe el script)
-# Asumimos que el script está en la raíz del volumen, si no, ajustar la ruta.
-RP_FILE_SERVER="/runpod-volume/rp_file_server.py"
-if [ -f "$RP_FILE_SERVER" ]; then
-    python3 -u "$RP_FILE_SERVER" &
-    echo "[MORPHEUS-STARTUP]    -> Servidor de archivos de RunPod iniciado."
-else
-    echo "[MORPHEUS-STARTUP]    -> ADVERTENCIA: No se encontró 'rp_file_server.py' en la raíz del volumen. No se inició el servidor de archivos."
-fi
-
-
-echo "===================================================================="
-echo "--- CONFIGURACIÓN DE MORPHEUS (v4) COMPLETADA CON ÉXITO ---"
-echo "===================================================================="
+echo "====================================================================="
+echo "--- CONFIGURACIÓN DE MORPHEUS (v6) COMPLETADA CON ÉXITO ---"
+echo "====================================================================="
 
 echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
-# Esta es la nueva línea que ejecuta nuestro handler, el cual se encargará de todo.
 exec python3 -u /workspace/morpheus_config/morpheus_handler.py
-# Mantener el script en ejecución para que el contenedor no se cierre mientras
-# los procesos en segundo plano están activos.
 wait -n
 exit $?
