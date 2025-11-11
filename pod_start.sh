@@ -154,9 +154,34 @@ done < <(grep -v '^#' "$RESOURCE_FILE" | grep -v '^[[:space:]]*$')
 # --- INICIO DE SERVIDORES ---
 echo "[MORPHEUS-STARTUP] 5. Iniciando servicios en segundo plano..."
 
-# Iniciar el servidor de la API de ComfyUI
+# Iniciar el servidor de la API de ComfyUI en segundo plano
 python3 /workspace/ComfyUI/main.py --listen --port 8188 &
-echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado en el puerto 8188."
+echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado en el puerto 8188. Esperando a que esté listo..."
+
+# --- [INICIO DE LA CORRECCIÓN] HEALTH CHECK ---
+# Esperamos un máximo de 90 segundos a que la API de ComfyUI responda correctamente.
+TIMEOUT=90
+ELAPSED=0
+while true; do
+    # Usamos curl para obtener el código de estado HTTP. La URL /object_info es ligera y buena para health checks.
+    STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8188/object_info)
+    
+    if [ "$STATUS_CODE" -eq 200 ]; then
+        echo "[MORPHEUS-STARTUP]    -> ¡Servidor de ComfyUI está listo! (Código 200 OK)"
+        break
+    else
+        echo "[MORPHEUS-STARTUP]    -> Esperando a ComfyUI... (Estado actual: $STATUS_CODE)"
+    fi
+    
+    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+        echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El servidor de ComfyUI no respondió en ${TIMEOUT} segundos."
+        exit 1
+    fi
+    
+    sleep 2
+    ELAPSED=$((ELAPSED + 2))
+done
+# --- [FIN DE LA CORRECCIÓN] ---
 
 # Iniciar el servidor de archivos de RunPod (si existe el script)
 # Asumimos que el script está en la raíz del volumen, si no, ajustar la ruta.
