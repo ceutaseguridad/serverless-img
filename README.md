@@ -91,4 +91,4 @@ MICROSERVICE_ENDPOINTS = {
     },
     # ... otros endpoints
 }
-Reinicia tu aplicación local (Streamlit y Celery) y lanza un trabajo de prueba. ¡El sistema ahora es completamente funcional
+Reinicia tu aplicación local (Streamlit y Celery) y lanza un trabajo de prueba.
