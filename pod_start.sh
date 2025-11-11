@@ -20,7 +20,7 @@ echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v7 (FINAL)         ---"
 echo "====================================================================="
 
 # --- DEFINICIÓN DE VARIABLES DE DIRECTORIO ---
-COMFYUI_DIR="/workspace/ComfyUI"
+COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 CONFIG_SOURCE_DIR="/workspace/morpheus_config"
