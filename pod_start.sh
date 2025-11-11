@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v9 (Final y Robusto) para Morpheus AI Suite
-# Instala dependencias del sistema y de Python, utiliza un caché pre-poblado,
-# y configura el entorno de ejecución antes de iniciar.
+# Script de Arranque v10 (Definitivo) para Morpheus AI Suite
+# Instala todas las dependencias (sistema y Python), utiliza un caché
+# pre-poblado y corrige el contexto de ejecución para el handler.
 # ==============================================================================
 
 set -e
 set -o pipefail
 
-# --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
+# --- FASE 1: INSTALACIÓN COMPLETA DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 
 # 1.1: Dependencias del Sistema (apt)
@@ -17,14 +17,14 @@ echo "[MORPHEUS-STARTUP]    -> Instalando 'curl' para el health check..."
 apt-get update && apt-get install -y curl
 
 # 1.2: Dependencias de Python (pip) para Nodos Personalizados
-echo "[MORPHEUS-STARTUP]    -> Instalando dependencias de Python para nodos personalizados..."
-# La librería 'insightface' es requerida por ComfyUI-PuLID
-pip install insightface
+echo "[MORPHEUS-STARTUP]    -> Instalando dependencias de Python (insightface y onnxruntime-gpu)..."
+# [CORRECCIÓN] Instalamos 'onnxruntime-gpu' explícitamente, que es requerido por 'insightface'
+pip install insightface onnxruntime-gpu
 
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v9 (FINAL)         ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v10 (DEFINITIVO)   ---"
 echo "====================================================================="
 
 # --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
@@ -46,28 +46,23 @@ fi
 echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado en '${CACHE_DIR}'."
 
 mkdir -p "${CUSTOM_NODES_DIR}" "${MODELS_DIR}" "${WORKFLOWS_DEST_DIR}"
-echo "[MORPHEUS-STARTUP]    -> Estructura de directorios de ComfyUI asegurada."
-
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
-echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
+echo "[MORPHEUS-STARTUP]    -> Estructura de directorios y workflows lista."
 
 # --- FASE 3: ENLACE SIMBÓLICO DESDE EL CACHÉ ---
 echo "[MORPHEUS-STARTUP] FASE 3: Creando enlaces simbólicos desde el caché..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
+    # ... (bucle sin cambios)
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
     case "$type" in
         GIT)
             SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}"
-            if [ -d "$SOURCE_PATH" ]; then
-                ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]    -> Enlace para nodo '${name}' creado."
-            fi
+            if [ -d "$SOURCE_PATH" ]; then ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; fi
             ;;
         URL_AUTH)
             MODEL_FOLDER=$(dirname "${name}"); SOURCE_PATH="${CACHE_DIR}/${MODEL_FOLDER}"; DEST_PATH="${MODELS_DIR}/${MODEL_FOLDER}"
-            if [ -d "$SOURCE_PATH" ]; then
-                mkdir -p "$(dirname "${DEST_PATH}")"; ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]    -> Enlace para carpeta '${MODEL_FOLDER}' creado."
-            fi
+            if [ -d "$SOURCE_PATH" ]; then mkdir -p "$(dirname "${DEST_PATH}")"; ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"; fi
             ;;
     esac
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
@@ -75,7 +70,6 @@ echo "[MORPHEUS-STARTUP]    -> Enlaces simbólicos completados."
 
 # --- FASE 4: INICIO DE SERVICIOS ---
 echo "[MORPHEUS-STARTUP] FASE 4: Iniciando servicios..."
-
 python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando a que esté listo..."
 
@@ -90,7 +84,7 @@ while true; do
     if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
         echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! ComfyUI no respondió en ${TIMEOUT}s."; exit 1
     fi
-    sleep 2; ELAPSED=$((ELAPSED + 2))
+    sleep 3; ELAPSED=$((ELAPSED + 3))
 done
 
 echo "====================================================================="
@@ -98,11 +92,12 @@ echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
-# [CORRECCIÓN] Añadimos el directorio raíz (/) al PYTHONPATH para que nuestro
-# script pueda encontrar 'comfy_handler.py'.
-export PYTHONPATH=$PYTHONPATH:/
+# [CORRECCIÓN DEFINITIVA] Cambiamos al directorio raíz ANTES de ejecutar el script.
+# Esto asegura que el directorio actual (/) esté en el PYTHONPATH,
+# permitiendo que 'morpheus_handler.py' encuentre e importe 'comfy_handler.py'.
+cd /
 
-echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
+echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus desde el directorio raíz..."
 exec python3 -u "${CONFIG_SOURCE_DIR}/morpheus_handler.py"
 wait -n
 exit $?
