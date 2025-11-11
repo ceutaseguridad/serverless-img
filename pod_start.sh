@@ -1,38 +1,43 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v8 (Ruta Corregida) para Morpheus AI Suite
-# Instala dependencias, utiliza un caché pre-poblado y se auto-verifica.
+# Script de Arranque v9 (Final y Robusto) para Morpheus AI Suite
+# Instala dependencias del sistema y de Python, utiliza un caché pre-poblado,
+# y configura el entorno de ejecución antes de iniciar.
 # ==============================================================================
 
 set -e
 set -o pipefail
 
-# --- INSTALACIÓN DE DEPENDENCIAS ---
-echo "[MORPHEUS-STARTUP] Actualizando lista de paquetes e instalando dependencias..."
+# --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
+echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
+
+# 1.1: Dependencias del Sistema (apt)
+echo "[MORPHEUS-STARTUP]    -> Instalando 'curl' para el health check..."
 apt-get update && apt-get install -y curl
-echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas (curl)."
+
+# 1.2: Dependencias de Python (pip) para Nodos Personalizados
+echo "[MORPHEUS-STARTUP]    -> Instalando dependencias de Python para nodos personalizados..."
+# La librería 'insightface' es requerida por ComfyUI-PuLID
+pip install insightface
+
+echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v8 (RUTA CORREGIDA) ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v9 (FINAL)         ---"
 echo "====================================================================="
 
-# --- [INICIO DE LA CORRECCIÓN FINAL] DEFINICIÓN CORRECTA DE RUTAS ---
-COMFYUI_DIR="/comfyui" # Esta es la ruta correcta en la plantilla de RunPod
-# --- [FIN DE LA CORRECCIÓN FINAL] ---
-
+# --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
+echo "[MORPHEUS-STARTUP] FASE 2: Configurando rutas y entorno..."
+COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
-CONFIG_SOURCE_DIR="/workspace/morpheus_config" # Esta ruta es correcta, es donde clonamos el código
+CONFIG_SOURCE_DIR="/workspace/morpheus_config"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 
-# --- RUTA AL VOLUMEN Y AL CACHÉ PRE-POBLADO ---
 NETWORK_VOLUME_PATH="/runpod-volume"
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
-
-# --- VERIFICACIONES INICIALES ---
-echo "[MORPHEUS-STARTUP] 1. Realizando verificaciones del entorno..."
 
 if [ ! -d "$CACHE_DIR" ]; then
     echo "[MORPHEUS-STARTUP] ¡ERROR FATAL! El directorio de caché '${CACHE_DIR}' no se encuentra."
@@ -40,52 +45,41 @@ if [ ! -d "$CACHE_DIR" ]; then
 fi
 echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado en '${CACHE_DIR}'."
 
-# --- CREACIÓN DE LA ESTRUCTURA DE DIRECTORIOS NECESARIA ---
-echo "[MORPHEUS-STARTUP] 2. Asegurando que la estructura de directorios de ComfyUI exista..."
-mkdir -p "${CUSTOM_NODES_DIR}"
-mkdir -p "${MODELS_DIR}"
-mkdir -p "${WORKFLOWS_DEST_DIR}"
-echo "[MORPHEUS-STARTUP]    -> Estructura de directorios lista."
+mkdir -p "${CUSTOM_NODES_DIR}" "${MODELS_DIR}" "${WORKFLOWS_DEST_DIR}"
+echo "[MORPHEUS-STARTUP]    -> Estructura de directorios de ComfyUI asegurada."
 
-# --- COPIA DE WORKFLOWS ---
-echo "[MORPHEUS-STARTUP] 3. Copiando archivos de workflow .json..."
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
 
-# --- ENLACE SIMBÓLICO DE MODELOS Y NODOS ---
-echo "[MORPHEUS-STARTUP] 4. Creando enlaces simbólicos desde el caché al contenedor..."
-
+# --- FASE 3: ENLACE SIMBÓLICO DESDE EL CACHÉ ---
+echo "[MORPHEUS-STARTUP] FASE 3: Creando enlaces simbólicos desde el caché..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
-    echo "[MORPHEUS-STARTUP]    -> Procesando: [${type}] ${name}"
     case "$type" in
         GIT)
             SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}"
             if [ -d "$SOURCE_PATH" ]; then
-                ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]      -> Enlace para nodo '${name}' creado."
-            else
-                echo "[MORPHEUS-STARTUP]      -> ADVERTENCIA: No se encontró el nodo '${name}' en el caché."
+                ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]    -> Enlace para nodo '${name}' creado."
             fi
             ;;
         URL_AUTH)
             MODEL_FOLDER=$(dirname "${name}"); SOURCE_PATH="${CACHE_DIR}/${MODEL_FOLDER}"; DEST_PATH="${MODELS_DIR}/${MODEL_FOLDER}"
             if [ -d "$SOURCE_PATH" ]; then
-                mkdir -p "$(dirname "${DEST_PATH}")"; ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]      -> Enlace para carpeta '${MODEL_FOLDER}' creado."
-            else
-                echo "[MORPHEUS-STARTUP]      -> ADVERTENCIA: No se encontró la carpeta '${MODEL_FOLDER}' en el caché."
+                mkdir -p "$(dirname "${DEST_PATH}")"; ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"; echo "[MORPHEUS-STARTUP]    -> Enlace para carpeta '${MODEL_FOLDER}' creado."
             fi
             ;;
     esac
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
+echo "[MORPHEUS-STARTUP]    -> Enlaces simbólicos completados."
 
-# --- INICIO DE SERVIDORES ---
-echo "[MORPHEUS-STARTUP] 5. Iniciando servicios en segundo plano..."
+# --- FASE 4: INICIO DE SERVICIOS ---
+echo "[MORPHEUS-STARTUP] FASE 4: Iniciando servicios..."
 
 python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando a que esté listo..."
 
-# HEALTH CHECK
+# Health Check
 TIMEOUT=120; ELAPSED=0
 while true; do
     if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then
@@ -102,6 +96,11 @@ done
 echo "====================================================================="
 echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
+
+# --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
+# [CORRECCIÓN] Añadimos el directorio raíz (/) al PYTHONPATH para que nuestro
+# script pueda encontrar 'comfy_handler.py'.
+export PYTHONPATH=$PYTHONPATH:/
 
 echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
 exec python3 -u "${CONFIG_SOURCE_DIR}/morpheus_handler.py"
