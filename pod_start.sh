@@ -10,7 +10,12 @@ set -o pipefail
 # --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 apt-get update > /dev/null 2>&1 && apt-get install -y curl > /dev/null 2>&1
-pip install insightface onnxruntime-gpu facexlib timm ftfy > /dev/null 2>&1
+
+# --- [INICIO DE LA CORRECCIÓN] ---
+# Añadimos 'requests' a la lista de paquetes pip para que el handler de diagnóstico funcione.
+pip install insightface onnxruntime-gpu facexlib timm ftfy requests > /dev/null 2>&1
+# --- [FIN DE LA CORRECCIÓN] ---
+
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
 echo "====================================================================="
