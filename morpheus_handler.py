@@ -1,4 +1,4 @@
-# morpheus_handler.py (v31 Final - Solo con Arreglo de Guardado)
+# morpheus_handler.py (V31 CON ARREGLO DE GUARDADO ÚNICAMENTE)
 
 import os
 import json
@@ -11,9 +11,9 @@ import requests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 COMFYUI_URL = "http://127.0.0.1:8188/prompt"
-# --- [INICIO] MODIFICACIÓN MÍNIMA ---
+# --- [INICIO] CAMBIO 1 DE 3 ---
 COMFYUI_OUTPUT_DIR = "/comfyui/output"
-# --- [FIN] MODIFICACIÓN MÍNIMA ---
+# --- [FIN] CAMBIO 1 DE 3 ---
 
 def morpheus_handler(job):
     job_id = job.get('id', 'id_desconocido')
@@ -22,7 +22,7 @@ def morpheus_handler(job):
     try:
         job_input = job.get('input')
         base_persistent_path = "/runpod-volume"
-        # La siguiente línea se mantiene por consistencia pero no se usará para el reemplazo
+        # Esta línea ya no es relevante para el guardado pero se deja
         output_dir = f"{base_persistent_path}/job_outputs/{job_id}"
         os.makedirs(output_dir, exist_ok=True)
         
@@ -36,21 +36,15 @@ def morpheus_handler(job):
         # Preparamos los parámetros para el reemplazo.
         params_to_replace = job_input.copy()
         
-        # --- [INICIO] MODIFICACIÓN MÍNIMA ---
-        # El placeholder `__param:output_path__` ahora recibirá solo el job_id
+        # --- [INICIO] CAMBIO 2 DE 3 ---
+        # El placeholder `__param:output_path__` recibe solo el job_id para que ComfyUI lo acepte.
         params_to_replace['output_path'] = job_id
-        # --- [FIN] MODIFICACIÓN MÍNIMA ---
+        # --- [FIN] CAMBIO 2 DE 3 ---
 
-        # Esta es la lógica original de v31 que funcionó. No se toca.
+        # ESTA ES LA LÓGICA ORIGINAL DE V31 QUE FUNCIONABA. NO SE TOCA.
         final_workflow_str = workflow_template_str
         for key, value in params_to_replace.items():
-            # Mapeo necesario para que `cfg_scale` de la UI coincida con `cfg` del workflow
-            if key == 'cfg_scale':
-                placeholder_key = 'cfg'
-            else:
-                placeholder_key = key
-
-            placeholder = f'"__param:{placeholder_key}__"'
+            placeholder = f'"__param:{key}__"'
             
             if isinstance(value, str):
                 replacement = json.dumps(value)
@@ -75,8 +69,8 @@ def morpheus_handler(job):
             start_time = time.time()
             image_path = None
             
-            # --- [INICIO] MODIFICACIÓN MÍNIMA ---
-            # La búsqueda se realiza en el directorio de salida de ComfyUI
+            # --- [INICIO] CAMBIO 3 DE 3 ---
+            # Se busca el archivo en la carpeta correcta de ComfyUI
             while time.time() - start_time < timeout_seconds:
                 found_files = glob.glob(os.path.join(COMFYUI_OUTPUT_DIR, f'{job_id}*.png'))
                 if found_files:
@@ -84,7 +78,7 @@ def morpheus_handler(job):
                     logging.info(f"¡ÉXITO! Archivo de salida encontrado: {image_path}")
                     break
                 time.sleep(3)
-            # --- [FIN] MODIFICACIÓN MÍNIMA ---
+            # --- [FIN] CAMBIO 3 DE 3 ---
             
             if image_path:
                 return { "image_pod_path": image_path }
