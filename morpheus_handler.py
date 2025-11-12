@@ -81,7 +81,24 @@ def morpheus_handler(job):
             # --- [FIN] CAMBIO 3 DE 3 ---
             
             if image_path:
-                return { "image_pod_path": image_path }
+                # Directorio de destino en el volumen persistente
+                persistent_output_dir = f"/runpod-volume/job_outputs/{job_id}"
+                os.makedirs(persistent_output_dir, exist_ok=True)
+                
+                # Nombre del archivo
+                image_filename = os.path.basename(image_path)
+                
+                # Ruta final en el volumen persistente
+                new_image_path = os.path.join(persistent_output_dir, image_filename)
+
+                # Movemos el archivo desde la carpeta de salida de ComfyUI a la carpeta persistente
+                import shutil
+                shutil.move(image_path, new_image_path)
+                
+                logging.info(f"Archivo movido a la ruta persistente: {new_image_path}")
+                
+                # Devolvemos la NUEVA ruta, la que es accesible para la descarga
+                return { "image_pod_path": new_image_path }
             else:
                 logging.error(f"Error CRÍTICO: Timeout. No se encontró el .png después de {timeout_seconds} segundos.")
                 return {"error": "Timeout: El archivo de imagen no se encontró a tiempo."}
