@@ -1,26 +1,11 @@
 {
   "3": {
     "inputs": {
-      "seed": [
-        "__param:seed__",
-        0
-      ],
-      "steps": [
-        "__param:steps__",
-        0
-      ],
-      "cfg": [
-        "__param:cfg_scale__",
-        0
-      ],
-      "sampler_name": [
-        "__param:sampler_name__",
-        0
-      ],
-      "scheduler": [
-        "__param:scheduler__",
-        0
-      ],
+      "seed": "__param:seed__",
+      "steps": "__param:steps__",
+      "cfg": "__param:cfg_scale__",
+      "sampler_name": "__param:sampler_name__",
+      "scheduler": "__param:scheduler__",
       "denoise": 1,
       "model": [
         "4",
@@ -46,10 +31,7 @@
   },
   "4": {
     "inputs": {
-      "ckpt_name": [
-        "__param:checkpoint_name__",
-        0
-      ]
+      "ckpt_name": "__param:checkpoint_name__"
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
@@ -58,14 +40,8 @@
   },
   "5": {
     "inputs": {
-      "width": [
-        "__param:width__",
-        0
-      ],
-      "height": [
-        "__param:height__",
-        0
-      ],
+      "width": "__param:width__",
+      "height": "__param:height__",
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
@@ -75,10 +51,7 @@
   },
   "6": {
     "inputs": {
-      "text": [
-        "__param:prompt__",
-        0
-      ],
+      "text": "__param:prompt__",
       "clip": [
         "4",
         1
@@ -91,10 +64,7 @@
   },
   "7": {
     "inputs": {
-      "text": [
-        "__param:negative_prompt__",
-        0
-      ],
+      "text": "__param:negative_prompt__",
       "clip": [
         "4",
         1
@@ -102,10 +72,23 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP Text Encode (Negative Prompt)"
+      "title": "CLIP Text Encode (Prompt)"
     }
   },
-  "8": {
+  "9": {
+    "inputs": {
+      "filename_prefix": "__param:filename_prefix__",
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "10": {
     "inputs": {
       "samples": [
         "3",
@@ -119,19 +102,6 @@
     "class_type": "VAEDecode",
     "_meta": {
       "title": "VAE Decode"
-    }
-  },
-  "9": {
-    "inputs": {
-      "filename_prefix": "Morpheus_Output",
-      "images": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
     }
   }
 }
