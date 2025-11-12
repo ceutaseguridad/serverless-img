@@ -5,22 +5,38 @@
       "steps": "__param:steps__",
       "cfg": "__param:cfg_scale__",
       "sampler_name": "__param:sampler_name__",
-      "scheduler": "karras",
+      "scheduler": "__param:scheduler__",
       "denoise": 1,
-      "model": ["2", 0],
-      "positive": ["6", 0],
-      "negative": ["7", 0],
-      "latent_image": ["5", 0]
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
     },
     "class_type": "KSampler",
-    "_meta": { "title": "KSampler" }
+    "_meta": {
+      "title": "KSampler"
+    }
   },
-  "2": {
+  "4": {
     "inputs": {
       "ckpt_name": "__param:checkpoint_name__"
     },
     "class_type": "CheckpointLoaderSimple",
-    "_meta": { "title": "Load Checkpoint" }
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
   },
   "5": {
     "inputs": {
@@ -29,39 +45,47 @@
       "batch_size": 1
     },
     "class_type": "EmptyLatentImage",
-    "_meta": { "title": "Empty Latent Image" }
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
   },
   "6": {
     "inputs": {
       "text": "__param:prompt__",
-      "clip": ["2", 1]
+      "clip": [
+        "4",
+        1
+      ]
     },
     "class_type": "CLIPTextEncode",
-    "_meta": { "title": "CLIP Text Encode (Prompt)" }
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
   },
   "7": {
     "inputs": {
       "text": "__param:negative_prompt__",
-      "clip": ["2", 1]
+      "clip": [
+        "4",
+        1
+      ]
     },
     "class_type": "CLIPTextEncode",
-    "_meta": { "title": "CLIP Text Encode (Negative)" }
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
   },
   "8": {
     "inputs": {
-      "samples": ["3", 0],
-      "vae": ["2", 2]
+      "filename_prefix": "__param:output_path__",
+      "images": [
+        "3",
+        0
+      ]
     },
-    "class_type": "VAEDecode",
-    "_meta": { "title": "VAE Decode" }
-  },
-  "9": {
-  "inputs": {
-    "filename_prefix": "Morpheus_Creation_Result",
-    "output_path": "__param:output_path__",
-    "images": ["8", 0]
-  },
-  "class_type": "SaveImage",
-  "_meta": { "title": "Save Image" }
-}
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  }
 }
