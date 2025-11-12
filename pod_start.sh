@@ -27,7 +27,7 @@ COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
-NETWORK_VOLUME_PATH="/runpod-volume"
+NETWORK_VOLUME_PATH="/workspace"
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
 
