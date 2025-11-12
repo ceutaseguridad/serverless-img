@@ -1,4 +1,4 @@
-# morpheus_handler.py (Versión v32 - Final)
+# morpheus_handler.py (Versión v33 - Stable Mapping)
 
 import os
 import json
@@ -11,9 +11,13 @@ import requests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 COMFYUI_URL = "http://127.0.0.1:8188/prompt"
-
-# El directorio de salida por defecto de ComfyUI dentro del contenedor
 COMFYUI_OUTPUT_DIR = "/comfyui/output"
+
+# El mapa de "traducción" es la forma correcta y robusta de manejar esto.
+PARAM_MAP = {
+    "cfg_scale": "cfg"
+    # Añadir cualquier otra "traducción" necesaria en el futuro aquí.
+}
 
 def morpheus_handler(job):
     job_id = job.get('id', 'id_desconocido')
@@ -21,9 +25,7 @@ def morpheus_handler(job):
 
     try:
         job_input = job.get('input')
-        
         workflow_name = job_input.get('workflow_name')
-        # La ruta a los workflows no cambia
         workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
         
         logging.info(f"Cargando plantilla de workflow desde: {workflow_path}")
@@ -32,19 +34,16 @@ def morpheus_handler(job):
 
         params_to_replace = job_input.copy()
         
-        # --- [INICIO DE LA CORRECCIÓN FINAL] ---
-        # En lugar de una ruta absoluta, usamos el job_id como prefijo.
-        # ComfyUI guardará en /comfyui/output/{job_id}_00001_.png
+        # Corrección del filename_prefix: Usamos el job_id para guardar en la carpeta de salida por defecto de ComfyUI.
         params_to_replace['filename_prefix'] = job_id
-        # --- [FIN DE LA CORRECCIÓN FINAL] ---
-
-        if 'cfg_scale' in params_to_replace:
-            params_to_replace['cfg'] = params_to_replace.pop('cfg_scale')
 
         final_workflow_str = workflow_template_str
         
-        for key, value in params_to_replace.items():
-            placeholder = f'"__param:{key}__"'
+        for key_from_ui, value in params_to_replace.items():
+            # Usamos el mapa para obtener el nombre de placeholder correcto.
+            key_for_workflow = PARAM_MAP.get(key_from_ui, key_from_ui)
+            
+            placeholder = f'"__param:{key_for_workflow}__"'
             
             if isinstance(value, str):
                 replacement = json.dumps(value)
@@ -56,7 +55,7 @@ def morpheus_handler(job):
         final_prompt = json.loads(final_workflow_str)
         payload = {"prompt": final_prompt}
         
-        logging.info("Payload construido. Prefijo de salida: " + job_id)
+        logging.info(f"Payload construido. Prefijo de salida: {job_id}")
         
         logging.info(f"Enviando petición POST a la API de ComfyUI en {COMFYUI_URL}")
         response = requests.post(COMFYUI_URL, json=payload)
@@ -69,12 +68,9 @@ def morpheus_handler(job):
             start_time = time.time()
             image_path = None
             
-            # El directorio donde debemos buscar ahora es el de ComfyUI
-            search_dir = COMFYUI_OUTPUT_DIR
-            
             while time.time() - start_time < timeout_seconds:
-                # Buscamos archivos que COMIENCEN con nuestro job_id
-                found_files = glob.glob(os.path.join(search_dir, f'{job_id}*.png'))
+                # Buscamos en el directorio de salida de ComfyUI archivos que empiecen con nuestro job_id.
+                found_files = glob.glob(os.path.join(COMFYUI_OUTPUT_DIR, f'{job_id}*.png'))
                 if found_files:
                     image_path = found_files[0]
                     logging.info(f"¡ÉXITO! Archivo de salida encontrado: {image_path}")
