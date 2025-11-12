@@ -78,8 +78,14 @@ echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
-echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
+echo "[MORP-STARTUP] Iniciando el handler personalizado de Morpheus..."
 cd "${CONFIG_SOURCE_DIR}"
-exec python3 -u morpheus_handler.py
+
+# EJECUTAMOS el handler y lo ponemos en segundo plano
+python3 -u morpheus_handler.py &
+
+# ESPERAMOS a que CUALQUIER proceso en segundo plano termine (ComfyUI o el handler)
 wait -n
+
+# Capturamos el código de salida y terminamos
 exit $?
