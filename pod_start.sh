@@ -61,9 +61,21 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
     case "$type" in
         GIT)
-            SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; if [ -d "$SOURCE_PATH" ]; then ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; fi ;;
+            # Esto ya estaba bien
+            SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
+            if [ -d "$SOURCE_PATH" ]; then ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; fi ;;
         URL_AUTH)
-            MODEL_FOLDER=$(dirname "${name}"); SOURCE_PATH="${CACHE_DIR}/${MODEL_FOLDER}"; DEST_PATH="${MODELS_DIR}/${MODEL_FOLDER}"; if [ -d "$SOURCE_PATH" ]; then mkdir -p "$(dirname "${DEST_PATH}")"; ln -sfn "${SOURCE_PATH}" "${DEST_PATH}"; fi ;;
+            # [LA CORRECCIÓN FINAL]
+            # Ahora enlazamos el ARCHIVO, no la CARPETA.
+            MODEL_FOLDER=$(dirname "${name}"); 
+            MODEL_FILENAME=$(basename "${name}");
+            SOURCE_FILE_PATH="${CACHE_DIR}/${MODEL_FOLDER}/${MODEL_FILENAME}";
+            DEST_FOLDER_PATH="${MODELS_DIR}/${MODEL_FOLDER}";
+            
+            if [ -f "$SOURCE_FILE_PATH" ]; then 
+                mkdir -p "$DEST_FOLDER_PATH";
+                ln -sf "$SOURCE_FILE_PATH" "$DEST_FOLDER_PATH"; 
+            fi ;;
     esac
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
 echo "[MORPHEUS-STARTUP]    -> Enlaces completados."
