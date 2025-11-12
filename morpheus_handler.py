@@ -30,7 +30,7 @@ def morpheus_handler(job):
         logging.info(f"Ruta de salida persistente: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
         
-        workflow_name = job_input.get('workflow_name')
+        workflow_name = "minimal_test"
         workflow_path = f"{base_persistent_path}/morpheus_lib/workflows/{workflow_name}.json"
         
         # --- 2. CARGAR Y PREPARAR WORKFLOW ---
