@@ -1,4 +1,4 @@
-# morpheus_handler.py (Versión v24 - Fixed)
+# morpheus_handler.py (Versión v25 - Final Logic)
 
 import os
 import json
@@ -8,9 +8,24 @@ import glob
 import time
 import requests
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime=s - %(levelname)s - %(message)s')
 
 COMFYUI_URL = "http://127.0.0.1:8188/prompt"
+
+def find_and_replace_placeholders(obj, params):
+    """
+    Recorre recursivamente un objeto (diccionario o lista) y reemplaza
+    los placeholders del tipo '__param:key__' con los valores de 'params'.
+    """
+    if isinstance(obj, dict):
+        return {k: find_and_replace_placeholders(v, params) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [find_and_replace_placeholders(elem, params) for elem in obj]
+    elif isinstance(obj, str) and obj.startswith('__param:'):
+        key = obj.split(':', 1)[1]
+        return params.get(key, obj) # Devuelve el valor o el placeholder si no se encuentra
+    else:
+        return obj
 
 def morpheus_handler(job):
     job_id = job.get('id', 'id_desconocido')
@@ -25,54 +40,50 @@ def morpheus_handler(job):
         workflow_name = job_input.get('workflow_name')
         workflow_path = f"{base_persistent_path}/morpheus_lib/workflows/{workflow_name}.json"
         
-        logging.info(f"Cargando workflow desde: {workflow_path}")
+        logging.info(f"Cargando plantilla de workflow desde: {workflow_path}")
         with open(workflow_path, 'r') as f:
-            prompt_template = f.read()
+            workflow_template = json.load(f) # Cargamos directamente como objeto Python
 
-        # --- [INICIO DE LA CORRECCIÓN CRÍTICA] ---
-        # El payload de 'tasks.py' es plano. 'job_input' contiene todos los parámetros.
-        # Creamos un diccionario de parámetros para reemplazar a partir de 'job_input'.
+        # --- [INICIO DE LA CORRECCIÓN DEFINITIVA] ---
+        # 1. Preparamos el diccionario de parámetros a reemplazar.
         params_to_replace = job_input.copy()
+        params_to_replace['output_path'] = output_dir
+
+        # 2. Usamos una función recursiva para reemplazar los placeholders
+        #    en la estructura del workflow, manteniendo los tipos de datos.
+        final_prompt = find_and_replace_placeholders(workflow_template, params_to_replace)
         
-        # Añadimos el output_path, que se genera aquí en el worker.
-        params_to_replace['output_path'] = output_dir 
-        # --- [FIN DE LA CORRECCIÓN] ---
-        
-        final_workflow_str = prompt_template
-        for key, value in params_to_replace.items():
-            # No intentamos reemplazar 'workflow_name' ya que no es un parámetro del JSON.
-            if key == 'workflow_name':
-                continue
-            
-            # La lógica de reemplazo es correcta, solo necesitaba los datos correctos.
-            final_workflow_str = final_workflow_str.replace(f'"__param:{key}__"', json.dumps(value))
-        
-        final_prompt = json.loads(final_workflow_str)
+        # 3. El payload para la API es el workflow ya procesado.
         payload = {"prompt": final_prompt}
-        
-        logging.info(f"Enviando petición POST directa a la API de ComfyUI en {COMFYUI_URL}")
+        # --- [FIN DE LA CORRECCIÓN] ---
+
+        logging.info("Payload final construido. Estructura de nodos procesada.")
+        # Opcional: Descomentar para ver el payload exacto que se envía
+        # logging.debug(f"Payload a enviar a ComfyUI: {json.dumps(payload, indent=2)}")
+
+        logging.info(f"Enviando petición POST a la API de ComfyUI en {COMFYUI_URL}")
         response = requests.post(COMFYUI_URL, json=payload)
 
         logging.info(f"Respuesta de la API de ComfyUI | Código de estado: {response.status_code}")
-        logging.info(f"Respuesta de la API de ComfyUI | Cuerpo: {response.text}")
-
+        
         if response.status_code == 200:
-            logging.info("El trabajo fue ACEPTADO por ComfyUI. Esperando la generación del archivo.")
+            logging.info("El trabajo fue ACEPTADO por ComfyUI. Procesando...")
             
-            # Damos tiempo suficiente para que la imagen se escriba en el volumen de red.
-            time.sleep(5)
+            # El tiempo de espera puede ser crucial para trabajos largos y escrituras en red
+            time.sleep(10) # Aumentamos el tiempo de espera por seguridad
             
             found_files = glob.glob(os.path.join(output_dir, '*.png'))
             
             if found_files:
                 image_path = found_files[0]
-                logging.info(f"¡ÉXITO! Archivo encontrado manualmente: {image_path}")
-                # La salida DEBE coincidir con la que espera 'tasks.py'
+                logging.info(f"¡ÉXITO! Archivo encontrado: {image_path}")
                 return { "image_pod_path": image_path }
             else:
-                logging.error("Error CRÍTICO: ComfyUI aceptó el trabajo, pero no se encontró el .png en la salida.")
-                return {"error": "El trabajo fue aceptado por la API pero no se encontró el archivo de imagen."}
+                logging.error("Error CRÍTICO: Trabajo aceptado, pero no se encontró el .png en la salida.")
+                return {"error": "El trabajo fue aceptado pero el archivo de imagen no se encontró."}
         else:
+            # Si el código no es 200, logueamos el cuerpo para el diagnóstico.
+            logging.error(f"Respuesta de la API de ComfyUI | Cuerpo: {response.text}")
             logging.error("Error CRÍTICO: El trabajo fue RECHAZADO por la API de ComfyUI.")
             return {
                 "error": "La API de ComfyUI rechazó el trabajo.",
