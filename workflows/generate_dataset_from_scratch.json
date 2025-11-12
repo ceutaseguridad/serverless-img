@@ -77,7 +77,7 @@
   },
   "9": {
     "inputs": {
-      "filename_prefix": "__param:filename_prefix__",
+      "filename_prefix": "__param:output_path__",
       "images": [
         "10",
         0
