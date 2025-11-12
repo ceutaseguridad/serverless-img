@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v14 (Impecable) para Morpheus AI Suite
+# Script de Arranque v15 (Rutas Unificadas)
 # ==============================================================================
 
 set -e
@@ -10,16 +10,16 @@ set -o pipefail
 # --- FASE 1: INSTALACIÓN COMPLETA DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 apt-get update && apt-get install -y curl
-# [CORRECCIÓN FINAL] Añadimos 'ftfy', la última dependencia descubierta para PuLID.
 pip install insightface onnxruntime-gpu facexlib timm ftfy
 echo "[MORPHEUS-STARTUP]    -> Dependencias completas instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v14 (IMPECABLE)    ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v15 (Rutas Unificadas) ---"
 echo "====================================================================="
 
 # --- FASE 2: CONFIGURACIÓN DE RUTAS Y ENTORNO ---
-CONFIG_SOURCE_DIR="/workspace/morpheus_config"
+# [CAMBIO 1] Apuntamos la configuración a /workspace
+CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
 cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler original copiado para asegurar la importación."
 
@@ -27,14 +27,20 @@ COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
+
+# [CAMBIO 2] LA RUTA BASE DEL VOLUMEN ES /workspace
 NETWORK_VOLUME_PATH="/workspace"
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
 
-if [ ! -d "$CACHE_DIR" ]; then echo "¡ERROR FATAL! Caché no encontrado."; exit 1; fi
-echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado."
+if [ ! -d "$CACHE_DIR" ]; then 
+    echo "¡ERROR FATAL! Caché no encontrado en '${CACHE_DIR}'. Verifica la ruta."; 
+    exit 1; 
+fi
+echo "[MORPHEUS-STARTUP]    -> Directorio de caché encontrado en '${CACHE_DIR}'."
 
 mkdir -p "${CUSTOM_NODES_DIR}" "${MODELS_DIR}" "${WORKFLOWS_DEST_DIR}"
+# [CAMBIO 3] Aseguramos que la copia de workflows también usa la ruta correcta
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados."
 
@@ -61,7 +67,7 @@ echo "[MORPHEUS-STARTUP] FASE 4: Iniciando servicios..."
 python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando..."
 
-# Health Check
+# Health Check (sin cambios)
 TIMEOUT=180; ELAPSED=0
 while true; do
     if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then
@@ -78,14 +84,7 @@ echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 5: INICIO DEL HANDLER PERSONALIZADO ---
-echo "[MORP-STARTUP] Iniciando el handler personalizado de Morpheus..."
+echo "[MORPHEUS-STARTUP] Iniciando el handler personalizado de Morpheus..."
 cd "${CONFIG_SOURCE_DIR}"
-
-# EJECUTAMOS el handler y lo ponemos en segundo plano
-python3 -u morpheus_handler.py &
-
-# ESPERAMOS a que CUALQUIER proceso en segundo plano termine (ComfyUI o el handler)
-wait -n
-
-# Capturamos el código de salida y terminamos
-exit $?
+# Usamos el método robusto con 'exec' que ya tenías
+exec python3 -u morpheus_handler.py
