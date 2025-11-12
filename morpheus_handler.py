@@ -1,4 +1,4 @@
-# morpheus_handler.py (LA VERSIÓN CORRECTA FINAL)
+# morpheus_handler.py (Versión Verificada por el Señuelo)
 
 import os
 import json
@@ -22,8 +22,8 @@ def morpheus_handler(job):
         if not all([job_id, job_input]):
             return {"error": "El objeto 'job' es inválido."}
 
-        # LA VERDAD ABSOLUTA: El almacenamiento persistente es /workspace.
-        base_persistent_path = "/workspace"
+        # LA VERDAD VERIFICADA: El worker ve el disco en /runpod-volume.
+        base_persistent_path = "/runpod-volume"
         
         # --- 1. DEFINIR RUTAS PERSISTENTES ---
         output_dir = f"{base_persistent_path}/job_outputs/{job_id}"
@@ -88,7 +88,7 @@ def morpheus_handler(job):
 
     except Exception as e:
         logging.error(f"Error fatal en morpheus_handler: {str(e)}", exc_info=True)
-        return {"error": f"Excepción fatal en morpheus_handler: {str(e)}"}
+        return {"error": f"Excepción fatal en morphema_handler: {str(e)}"}
 
 if __name__ == "__main__":
     runpod.serverless.start({"handler": morpheus_handler})
