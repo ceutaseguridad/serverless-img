@@ -1,46 +1,12 @@
 {
-  "1": {
-    "inputs": {
-      "directory": "__dir:base_images_pod_paths__",
-      "image_load_cap": 50
-    },
-    "class_type": "LoadImageBatch",
-    "_meta": {
-      "title": "Cargar Lote de Imágenes del Dataset"
-    }
-  },
   "2": {
     "inputs": {
-      "model_name": "ip-adapter-plus-face_sdxl.bin"
+      "image_path": "__param:dataset_pod_path__",
+      "save_path": "__param:pid_save_pod_path__"
     },
-    "class_type": "IPAdapterModelLoader",
+    "class_type": "PuLID-ID-Encoder",
     "_meta": {
-      "title": "Cargar Modelo IP-Adapter (FaceID)"
-    }
-  },
-  "3": {
-    "inputs": {
-      "image": [
-        "1",
-        0
-      ]
-    },
-    "class_type": "Prep-C-INSIGHTFace",
-    "_meta": {
-      "title": "Preparar y Extraer Caras (InsightFace)"
-    }
-  },
-  "4": {
-    "inputs": {
-      "filename_prefix": "PID_Result",
-      "embeds": [
-        "3",
-        1
-      ]
-    },
-    "class_type": "SaveEmbeds",
-    "_meta": {
-      "title": "Guardar Paquete de Identidad Digital (PID)"
+      "title": "PuLID-ID-Encoder"
     }
   }
 }
