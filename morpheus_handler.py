@@ -1,4 +1,4 @@
-# morpheus_handler.py (v18 - Job ID Fix)
+# morpheus_handler.py (v19 - Debug Output)
 import os
 import json
 import shutil
@@ -77,7 +77,7 @@ def _process_and_move_output(comfy_output, job_id):
 def morpheus_handler(job):
     """Handler principal que orquesta el trabajo."""
     job_id = job.get('id', 'unknown_job')
-    logging.info(f"--- INICIO DE MORPHEUS_HANDLER (v18) para el trabajo: {job_id} ---")
+    logging.info(f"--- INICIO DE MORPHEUS_HANDLER (v19) para el trabajo: {job_id} ---")
     try:
         validated_input = validate(job['input'], INPUT_SCHEMA)
         if 'errors' in validated_input:
@@ -86,21 +86,19 @@ def morpheus_handler(job):
         
         final_prompt = _prepare_comfyui_prompt(job_input)
         
-        # --- [INICIO DE LA CORRECCIÓN] ---
-        # En lugar de crear un nuevo diccionario, modificamos el 'job' original
-        # que recibimos de RunPod. Esto preserva el 'id' y otras claves que
-        # el comfy_handler puede necesitar.
         job['input']['prompt'] = final_prompt
-        # --- [FIN DE LA CORRECCIÓN] ---
-
-        # Consumir el generador de comfy_handler para obtener la lista de resultados
-        result_generator = comfy_handler.handler(job) # Ahora le pasamos el 'job' modificado
+        
+        result_generator = comfy_handler.handler(job)
         result_list = list(result_generator)
         
         if not result_list:
             return {"error": "El handler de ComfyUI no devolvió ningún resultado."}
-
+        
         final_comfy_result = result_list[-1]
+        
+        # --- [DEBUG] LOGUEAMOS el resultado crudo que nos da ComfyUI ANTES de procesarlo. ---
+        logging.info(f"Salida CRUDA recibida de comfy_handler: {final_comfy_result}")
+        # --- [DEBUG] ---
         
         return _process_and_move_output(final_comfy_result, job_id)
 
@@ -109,5 +107,5 @@ def morpheus_handler(job):
         return {"error": f"Error inesperado en morpheus_handler: {str(e)}"}
 
 # --- Punto de Entrada de RunPod ---
-logging.info("--- MORPHEUS_HANDLER.PY (v18) CARGADO, INICIANDO SERVIDOR RUNPOD ---")
+logging.info("--- MORPHEUS_HANDLER.PY (v19) CARGADO, INICIANDO SERVIDOR RUNPOD ---")
 runpod.serverless.start({"handler": morpheus_handler})
