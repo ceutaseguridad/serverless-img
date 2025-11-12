@@ -1,76 +1,69 @@
-# morpheus_handler.py (Versión 18 - Definitiva)
-
 import os
 import json
 import runpod
-from runpod.serverless.utils.rp_validator import validate
 import comfy_handler 
-
-INPUT_SCHEMA = {
-    'workflow_name': { 'type': str, 'required': True },
-    'params': { 'type': dict, 'required': True }
-}
-
-def _prepare_comfyui_prompt(job_input):
-    workflow_name = job_input['workflow_name']
-    params = job_input['params']
-    workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
-    if not os.path.exists(workflow_path):
-        raise FileNotFoundError(f"Workflow '{workflow_path}' no encontrado.")
-    with open(workflow_path, 'r') as f:
-        prompt_template = f.read()
-    final_workflow_str = prompt_template
-    for key, value in params.items():
-        placeholder = f'"__param:{key}__"'
-        final_workflow_str = final_workflow_str.replace(placeholder, json.dumps(value))
-    return json.loads(final_workflow_str)
-
-def _reformat_comfyui_output(comfy_output):
-    if not isinstance(comfy_output, dict) or 'error' in comfy_output:
-        return comfy_output
-    for node_id, node_output in comfy_output.items():
-        if 'images' in node_output:
-            for image_data in node_output['images']:
-                filename = image_data.get('filename')
-                subfolder = image_data.get('subfolder')
-                base_path = "/comfyui/output"
-                full_path = os.path.join(base_path, subfolder, filename) if subfolder else os.path.join(base_path, filename)
-                return { "image_pod_path": full_path }
-    return {"error": "El workflow de ComfyUI no produjo ninguna imagen."}
 
 def morpheus_handler(job):
     """
-    Handler final: Valida, Prepara, Ejecuta y Traduce, respetando la estructura del job.
+    Handler final que guarda los resultados en el volumen persistente.
     """
     try:
+        job_id = job.get('id')
         job_input = job.get('input')
-        if not job_input:
-            return {"error": "El objeto 'job' no contiene la clave 'input'."}
-        
-        validated_input = validate(job_input, INPUT_SCHEMA)
-        if 'errors' in validated_input:
-            return {"error": validated_input['errors']}
-        
-        final_prompt = _prepare_comfyui_prompt(validated_input['validated_input'])
+        if not all([job_id, job_input]):
+            return {"error": "El objeto 'job' es inválido, no contiene 'id' o 'input'."}
 
-        # --- [SOLUCIÓN DEFINITIVA] ---
-        # Modificamos el objeto 'job' original para inyectar nuestro prompt preparado,
-        # pero conservamos el resto de la estructura (como el 'id').
+        # --- 1. PREPARAR RUTA DE SALIDA PERSISTENTE ---
+        # Creamos un directorio único para este trabajo en el volumen de red.
+        output_dir = f"/runpod-volume/job_outputs/{job_id}"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # --- 2. PREPARAR EL PROMPT CON LA NUEVA RUTA ---
+        workflow_name = job_input.get('workflow_name')
+        params = job_input.get('params', {})
+        
+        # Añadimos nuestra ruta de salida persistente a los parámetros del workflow
+        params['output_path'] = output_dir
+        
+        workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
+        if not os.path.exists(workflow_path):
+            raise FileNotFoundError(f"Workflow '{workflow_path}' no encontrado.")
+
+        with open(workflow_path, 'r') as f:
+            prompt_template = f.read()
+
+        final_workflow_str = prompt_template
+        for key, value in params.items():
+            placeholder = f'"__param:{key}__"'
+            final_workflow_str = final_workflow_str.replace(placeholder, json.dumps(value))
+        
+        final_prompt = json.loads(final_workflow_str)
+
+        # --- 3. EJECUTAR EL TRABAJO ---
         job['input'] = { "prompt": final_prompt }
         
-        # Ahora llamamos al handler original con el objeto 'job' completo y modificado.
-        result_generator = comfy_handler.handler(job)
-        # --- [FIN DE LA SOLUCIÓN] ---
+        comfy_output = None
+        for result in comfy_handler.handler(job):
+            comfy_output = result
         
-        result_list = list(result_generator)
-        if not result_list:
-            return {"error": "El handler de ComfyUI no devolvió ningún resultado."}
+        if comfy_output is None:
+            return {"error": "El handler de ComfyUI no produjo ningún output."}
 
-        final_result = result_list[-1]
-        return _reformat_comfyui_output(final_result)
+        # --- 4. DEVOLVER LA RUTA PERSISTENTE ---
+        # Ahora que el archivo está en una ruta predecible, podemos construirla.
+        # El output de ComfyUI nos da el nombre del archivo.
+        for node_id, node_data in comfy_output.items():
+            if 'images' in node_data:
+                for image_data in node_data['images']:
+                    filename = image_data.get('filename')
+                    # La ruta completa ahora está en nuestro directorio de salida persistente.
+                    full_persistent_path = os.path.join(output_dir, filename)
+                    
+                    return { "image_pod_path": full_persistent_path }
+
+        return {"error": "Workflow completado pero no se encontraron imágenes en el output.", "raw_output": comfy_output}
 
     except Exception as e:
-        # Devolvemos el error específico para una mejor depuración en la app local.
         return {"error": f"Error inesperado en morpheus_handler: {str(e)}"}
 
 runpod.serverless.start({"handler": morpheus_handler})
