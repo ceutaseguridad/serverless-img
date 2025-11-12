@@ -1,84 +1,85 @@
-# morpheus_handler.py (Versión 22 - La Simple y Correcta)
+# morpheus_handler.py (Versión de Verificación de Archivo)
 
-import os
-import json
 import runpod
-import comfy_handler 
+import logging
+import json
+import os
+import time
 
-def morpheus_handler(job):
+# --- Configuración del Logging ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# --- Copia y Carga del Handler Original de ComfyUI ---
+if not os.path.exists("comfy_handler.py"):
+    # Asegúrate de que el handler original se copia para poder llamarlo
+    os.system("cp /handler.py ./comfy_handler.py")
+import comfy_handler
+
+# ---------------------------------------------------------------------------- #
+#                          HANDLER DE VERIFICACIÓN                               #
+# ---------------------------------------------------------------------------- #
+
+def handler(job):
     """
-    Handler final que simplifica el flujo y se centra en la traducción.
+    Este handler ejecuta el trabajo de ComfyUI y luego verifica si los
+    archivos de salida se han creado en el almacenamiento persistente.
     """
+    job_id = job.get('id', 'unknown_job_id')
+    logging.info(f"--- Iniciando handler de verificación para el trabajo: {job_id} ---")
+
+    # 1. DEFINIR LA RUTA DE SALIDA CORRECTA
+    # Basado en la investigación, la ruta para Serverless es /runpod-volume
+    # Se recomienda usar una subcarpeta por trabajo para mantener el orden.
+    output_dir = f"/runpod-volume/job_outputs/{job_id}"
+    logging.info(f"Directorio de salida esperado: {output_dir}")
+
+    # Es buena práctica asegurarse de que el directorio base exista
+    os.makedirs("/runpod-volume/job_outputs", exist_ok=True)
+
+    comfyui_result = None
+    comfyui_error = None
+
+    # 2. EJECUTAR EL TRABAJO DE COMFYUI
     try:
-        job_id = job.get('id')
-        job_input = job.get('input')
-        if not all([job_id, job_input]):
-            return {"error": "El objeto 'job' es inválido, no contiene 'id' o 'input'."}
-
-        # --- 1. PREPARAR RUTA DE SALIDA PERSISTENTE ---
-        # Como hemos verificado, el volumen persistente está en /workspace
-        output_dir = f"/workspace/job_outputs/{job_id}"
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # --- 2. PREPARAR EL PROMPT CON LA RUTA DE SALIDA ---
-        workflow_name = job_input.get('workflow_name')
-        params = job_input.get('params', {})
-        params['output_path'] = output_dir # Añadimos la ruta persistente
-        
-        workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
-        if not os.path.exists(workflow_path):
-            return {"error": f"Workflow '{workflow_path}' no encontrado."}
-
-        with open(workflow_path, 'r') as f:
-            prompt_template = f.read()
-
-        final_workflow_str = prompt_template
-        for key, value in params.items():
-            placeholder = f'"__param:{key}__"'
-            final_workflow_str = final_workflow_str.replace(placeholder, json.dumps(value))
-        
-        final_prompt = json.loads(final_workflow_str)
-
-        # --- 3. CREAR UN NUEVO 'JOB' LIMPIO PARA COMFY_HANDLER ---
-        # En lugar de modificar el 'job' original, creamos uno nuevo y limpio.
-        # Le pasamos el 'id' porque hemos visto que lo necesita.
-        comfy_job = {
-            "id": job_id,
-            "input": { "prompt": final_prompt }
-        }
-        
-        # --- 4. EJECUTAR Y CAPTURAR EL RESULTADO ---
-        comfy_output = None
-        for result in comfy_handler.handler(comfy_job):
-            # Asumimos que el último resultado es el bueno
-            comfy_output = result
-        
-        if comfy_output is None:
-            return {"error": "El handler de ComfyUI no produjo ningún output."}
-
-        # Si el resultado es un string, es un error del handler interno.
-        if isinstance(comfy_output, str):
-            return {"error": f"Error interno del comfy_handler: {comfy_output}"}
-        
-        # Si no es un diccionario, es un tipo de error inesperado.
-        if not isinstance(comfy_output, dict):
-            return {"error": f"El comfy_handler devolvió un tipo de dato inesperado: {type(comfy_output)}"}
-
-        # --- 5. DEVOLVER LA RUTA PERSISTENTE ---
-        for node_id, node_data in comfy_output.items():
-            if 'images' in node_data:
-                for image_data in node_data['images']:
-                    filename = image_data.get('filename')
-                    full_persistent_path = os.path.join(output_dir, filename)
-                    # Verificamos que el archivo realmente existe antes de devolverlo
-                    if os.path.exists(full_persistent_path):
-                        return { "image_pod_path": full_persistent_path }
-                    else:
-                        return {"error": f"El archivo '{filename}' no fue encontrado en la ruta de salida esperada."}
-
-        return {"error": "Workflow completado pero no se encontraron imágenes en el output.", "raw_output": comfy_output}
-
+        logging.info("Invocando a comfy_handler.handler...")
+        # El handler de ComfyUI puede ser un generador, lo consumimos para completarlo
+        result_generator = comfy_handler.handler(job)
+        for result in result_generator:
+            comfyui_result = result
+        logging.info("La ejecución de comfy_handler.handler ha finalizado.")
     except Exception as e:
-        return {"error": f"Error fatal en morpheus_handler: {str(e)}"}
+        logging.error(f"Se ha producido una excepción al ejecutar comfy_handler: {e}", exc_info=True)
+        comfyui_error = str(e)
 
-runpod.serverless.start({"handler": morpheus_handler})
+    # Pequeña pausa para asegurar la sincronización del sistema de archivos de red
+    time.sleep(2)
+
+    # 3. VERIFICAR EL SISTEMA DE ARCHIVOS
+    logging.info(f"Verificando el sistema de archivos en '{output_dir}'...")
+    directory_exists = os.path.exists(output_dir)
+    files_in_directory = []
+    if directory_exists:
+        try:
+            files_in_directory = os.listdir(output_dir)
+        except OSError as e:
+            logging.error(f"Error al leer el directorio {output_dir}: {e}")
+
+    logging.info(f"Verificación completada. ¿Existe el directorio?: {directory_exists}. Archivos encontrados: {files_in_directory}")
+
+    # 4. DEVOLVER UN INFORME DETALLADO
+    return {
+        "status": "verification_complete",
+        "job_id": job_id,
+        "checked_path": output_dir,
+        "directory_exists": directory_exists,
+        "files_found": files_in_directory,
+        "comfyui_raw_output": comfyui_result,
+        "comfyui_execution_error": comfyui_error
+    }
+
+
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": handler})
