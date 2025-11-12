@@ -1,4 +1,4 @@
-# morpheus_handler.py (Versión v31 - Template Engine)
+# morpheus_handler.py (Versión v32 - Final)
 
 import os
 import json
@@ -12,26 +12,34 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 COMFYUI_URL = "http://127.0.0.1:8188/prompt"
 
+# El directorio de salida por defecto de ComfyUI dentro del contenedor
+COMFYUI_OUTPUT_DIR = "/comfyui/output"
+
 def morpheus_handler(job):
     job_id = job.get('id', 'id_desconocido')
     logging.info(f"--- Inicio del trabajo: {job_id} ---")
 
     try:
         job_input = job.get('input')
-        base_persistent_path = "/runpod-volume"
-        output_dir = f"{base_persistent_path}/job_outputs/{job_id}"
-        os.makedirs(output_dir, exist_ok=True)
         
         workflow_name = job_input.get('workflow_name')
-        workflow_path = f"{base_persistent_path}/morpheus_lib/workflows/{workflow_name}.json"
+        # La ruta a los workflows no cambia
+        workflow_path = f"/runpod-volume/morpheus_lib/workflows/{workflow_name}.json"
         
         logging.info(f"Cargando plantilla de workflow desde: {workflow_path}")
         with open(workflow_path, 'r') as f:
             workflow_template_str = f.read()
 
-        # Preparamos los parámetros para el reemplazo.
         params_to_replace = job_input.copy()
-        params_to_replace['output_path'] = output_dir
+        
+        # --- [INICIO DE LA CORRECCIÓN FINAL] ---
+        # En lugar de una ruta absoluta, usamos el job_id como prefijo.
+        # ComfyUI guardará en /comfyui/output/{job_id}_00001_.png
+        params_to_replace['filename_prefix'] = job_id
+        # --- [FIN DE LA CORRECCIÓN FINAL] ---
+
+        if 'cfg_scale' in params_to_replace:
+            params_to_replace['cfg'] = params_to_replace.pop('cfg_scale')
 
         final_workflow_str = workflow_template_str
         
@@ -48,7 +56,7 @@ def morpheus_handler(job):
         final_prompt = json.loads(final_workflow_str)
         payload = {"prompt": final_prompt}
         
-        logging.info("Payload construido mediante reemplazo de texto sobre plantilla JSON.")
+        logging.info("Payload construido. Prefijo de salida: " + job_id)
         
         logging.info(f"Enviando petición POST a la API de ComfyUI en {COMFYUI_URL}")
         response = requests.post(COMFYUI_URL, json=payload)
@@ -61,8 +69,12 @@ def morpheus_handler(job):
             start_time = time.time()
             image_path = None
             
+            # El directorio donde debemos buscar ahora es el de ComfyUI
+            search_dir = COMFYUI_OUTPUT_DIR
+            
             while time.time() - start_time < timeout_seconds:
-                found_files = glob.glob(os.path.join(output_dir, '**', '*.png'), recursive=True)
+                # Buscamos archivos que COMIENCEN con nuestro job_id
+                found_files = glob.glob(os.path.join(search_dir, f'{job_id}*.png'))
                 if found_files:
                     image_path = found_files[0]
                     logging.info(f"¡ÉXITO! Archivo de salida encontrado: {image_path}")
@@ -76,7 +88,6 @@ def morpheus_handler(job):
                 return {"error": "Timeout: El archivo de imagen no se encontró a tiempo."}
         else:
             logging.error(f"Respuesta de la API de ComfyUI | Cuerpo: {response.text}")
-            logging.error("Error CRÍTICO: La API de ComfyUI rechazó el trabajo.")
             return { "error": "La API de ComfyUI rechazó el trabajo.", "status_code": response.status_code, "details": response.text }
 
     except Exception as e:
