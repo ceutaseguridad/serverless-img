@@ -1,4 +1,4 @@
-# morpheus_handler.py (Versión v30 - Template Driven)
+# morpheus_handler.py (Versión v31 - Template Engine)
 
 import os
 import json
@@ -29,26 +29,26 @@ def morpheus_handler(job):
         with open(workflow_path, 'r') as f:
             workflow_template_str = f.read()
 
-        # Preparamos los parámetros. La clave es que ahora el workflow es una plantilla real.
+        # Preparamos los parámetros para el reemplazo.
         params_to_replace = job_input.copy()
-        params_to_replace['filename_prefix'] = output_dir
-        # Mapeamos 'cfg_scale' a 'cfg' para que coincida con el placeholder
-        if 'cfg_scale' in params_to_replace:
-            params_to_replace['cfg'] = params_to_replace.pop('cfg_scale')
+        params_to_replace['output_path'] = output_dir
 
         final_workflow_str = workflow_template_str
         
         for key, value in params_to_replace.items():
-            placeholder = f"__param:{key}__"
+            placeholder = f'"__param:{key}__"'
             
-            # Reemplazamos el placeholder (sin comillas) por el valor JSON correcto
-            # json.dumps se encarga de añadir comillas para strings y dejar números/booleanos como están.
-            final_workflow_str = final_workflow_str.replace(placeholder, json.dumps(value).strip('"'))
+            if isinstance(value, str):
+                replacement = json.dumps(value)
+            else:
+                replacement = str(value).lower()
 
+            final_workflow_str = final_workflow_str.replace(placeholder, replacement)
+        
         final_prompt = json.loads(final_workflow_str)
         payload = {"prompt": final_prompt}
         
-        logging.info("Payload construido a partir de la plantilla de workflow modificada.")
+        logging.info("Payload construido mediante reemplazo de texto sobre plantilla JSON.")
         
         logging.info(f"Enviando petición POST a la API de ComfyUI en {COMFYUI_URL}")
         response = requests.post(COMFYUI_URL, json=payload)
