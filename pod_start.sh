@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v17 (Con Agua Bendita y Rutas Correctas)
-# Premisa: El volumen persistente SIEMPRE es /runpod-volume en Serverless.
+# Script de Arranque v18 (Diagnóstico Verbose)
 # ==============================================================================
 
 set -e
@@ -10,27 +9,19 @@ set -o pipefail
 
 # --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias de Python..."
-# Se instalan las dependencias necesarias para los nodos personalizados.
 apt-get update > /dev/null 2>&1 && apt-get install -y curl > /dev/null 2>&1
 pip install insightface onnxruntime-gpu facexlib timm ftfy > /dev/null 2>&1
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
 echo "====================================================================="
-echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v17 (Rutas Definitivas) ---"
+echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v18 (Diagnóstico Verbose) ---"
 echo "====================================================================="
 
 # --- FASE 2: DEFINICIÓN DE RUTAS ---
-# El código fuente clonado por RunPod vive en el disco EFÍMERO /workspace.
 CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
-
-# El volumen de red PERSISTENTE se monta en /runpod-volume.
 NETWORK_VOLUME_PATH="/runpod-volume"
-
-# Rutas que dependen del volumen PERSISTENTE.
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
-
-# Rutas internas de ComfyUI en el disco efímero.
 COMFYUI_DIR="/comfyui"
 CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
@@ -47,7 +38,6 @@ ELAPSED=0
 while [ ! -d "$CACHE_DIR" ]; do
     if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then
         echo "¡ERROR FATAL! El directorio del caché '${CACHE_DIR}' no apareció después de ${WAIT_TIMEOUT} segundos."
-        echo "Verifica que el Network Volume está correctamente asociado y la ruta es correcta."
         exit 1
     fi
     echo -n "."
@@ -57,16 +47,13 @@ done
 echo " ¡Volumen persistente montado y verificado!"
 
 # --- FASE 4: PREPARACIÓN DEL ENTORNO ---
-# Copiamos los workflows desde el código efímero al almacenamiento persistente para que el handler los encuentre.
 mkdir -p "${WORKFLOWS_DEST_DIR}"
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados a '${WORKFLOWS_DEST_DIR}'."
 
-# Copiamos el handler de ComfyUI para asegurar que la importación en Python funcione.
 cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler de ComfyUI copiado para importación."
 
-# Creamos los enlaces simbólicos desde el disco efímero de ComfyUI al caché de modelos persistente.
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 echo "[MORPHEUS-STARTUP] FASE 4: Creando enlaces simbólicos desde '${CACHE_DIR}'..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
@@ -87,7 +74,8 @@ echo "[MORPHEUS-STARTUP]    -> Enlaces completados."
 
 # --- FASE 5: INICIO DE SERVICIOS ---
 echo "[MORPHEUS-STARTUP] FASE 5: Iniciando servicios en segundo plano..."
-python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 &
+# [CAMBIO CLAVE] Añadido --verbose para obtener más detalles del error de ComfyUI
+python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 --verbose &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado. Esperando health check..."
 
 TIMEOUT=180; ELAPSED=0
@@ -106,8 +94,6 @@ echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"
 echo "====================================================================="
 
 # --- FASE 6: INICIO DEL HANDLER DE MORPHEUS ---
-# Nos movemos al directorio del código fuente para que las importaciones funcionen.
 cd "${CONFIG_SOURCE_DIR}"
 echo "[MORPHEUS-STARTUP] Iniciando el handler 'morpheus_handler.py'..."
-# 'exec' reemplaza el proceso del script con el de Python, que es lo que RunPod espera.
 exec python3 -u morpheus_handler.py
