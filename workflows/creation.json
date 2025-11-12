@@ -56,11 +56,12 @@
     "_meta": { "title": "VAE Decode" }
   },
   "9": {
-    "inputs": {
-      "filename_prefix": "Morpheus_Creation_Result",
-      "images": ["8", 0]
-    },
-    "class_type": "SaveImage",
-    "_meta": { "title": "Save Image" }
-  }
+  "inputs": {
+    "filename_prefix": "Morpheus_Creation_Result",
+    "output_path": "__param:output_path__",
+    "images": ["8", 0]
+  },
+  "class_type": "SaveImage",
+  "_meta": { "title": "Save Image" }
+}
 }
