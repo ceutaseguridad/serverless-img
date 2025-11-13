@@ -7,85 +7,41 @@
       "sampler_name": "__param:sampler_name__",
       "scheduler": "__param:scheduler__",
       "denoise": 1,
-      "model": [
-        "4",
-        0
-      ],
-      "positive": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
-      "latent_image": [
-        "5",
-        0
-      ]
+      "model": [ "4", 0 ],
+      "positive": [ "6", 0 ],
+      "negative": [ "7", 0 ],
+      "latent_image": [ "5", 0 ]
     },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "KSampler"
-    }
+    "class_type": "KSampler"
   },
   "4": {
-    "inputs": {
-      "ckpt_name": "__param:checkpoint_name__"
-    },
-    "class_type": "CheckpointLoaderSimple",
-    "_meta": {
-      "title": "Load Checkpoint"
-    }
+    "inputs": { "ckpt_name": "__param:checkpoint_name__" },
+    "class_type": "CheckpointLoaderSimple"
   },
   "5": {
-    "inputs": {
-      "width": "__param:width__",
-      "height": "__param:height__",
-      "batch_size": 1
-    },
-    "class_type": "EmptyLatentImage",
-    "_meta": {
-      "title": "Empty Latent Image"
-    }
+    "inputs": { "width": "__param:width__", "height": "__param:height__", "batch_size": 1 },
+    "class_type": "EmptyLatentImage"
   },
   "6": {
-    "inputs": {
-      "text": "__param:prompt__",
-      "clip": [
-        "4",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
+    "inputs": { "text": "__param:prompt__", "clip": [ "4", 1 ] },
+    "class_type": "CLIPTextEncode"
   },
   "7": {
-    "inputs": {
-      "text": "__param:negative_prompt__",
-      "clip": [
-        "4",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
+    "inputs": { "text": "__param:negative_prompt__", "clip": [ "4", 1 ] },
+    "class_type": "CLIPTextEncode"
   },
   "8": {
     "inputs": {
       "filename_prefix": "__param:output_path__",
-      "images": [
-        "3",
-        0
-      ]
+      "images": [ "10", 0 ]
     },
-    "class_type": "PreviewImage",
-    "_meta": {
-      "title": "Preview Image"
-    }
+    "class_type": "SaveImage"
+  },
+  "10": {
+    "inputs": {
+        "samples": [ "3", 0 ],
+        "vae": [ "4", 2 ]
+    },
+    "class_type": "VAEDecode"
   }
 }
