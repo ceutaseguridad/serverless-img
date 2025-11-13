@@ -1,62 +1,19 @@
 {
-  "2": {
-    "inputs": {
-      "image_path": "__param:source_image_pod_path__",
-      "save_path": "pulid/xx.bin"
-    },
-    "class_type": "PuLID-ID-Encoder",
-    "_meta": {
-      "title": "PuLID-ID-Encoder"
-    }
-  },
-  "3": {
-    "inputs": {
-      "image_path": "__param:reference_image_pod_path__"
-    },
-    "class_type": "PuLID-Face-Analysis",
-    "_meta": {
-      "title": "PuLID-Face-Analysis"
-    }
-  },
   "5": {
     "inputs": {
-      "id_weights": "__param:pid_weights_pod_path__",
-      "face_analysis": [
-        "3",
-        0
-      ],
-      "model": [
-        "11",
-        0
-      ]
+      "id_weights": "__param:pid_vector_local_path__",
+      "face_analysis": null,
+      "model": [ "11", 0 ]
     },
     "class_type": "PuLID"
   },
   "6": {
-    "inputs": {
-      "text": "__param:prompt__",
-      "clip": [
-        "11",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
+    "inputs": { "text": "__param:prompt__", "clip": [ "11", 1 ] },
+    "class_type": "CLIPTextEncode"
   },
   "7": {
-    "inputs": {
-      "text": "__param:negative_prompt__",
-      "clip": [
-        "11",
-        1
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
+    "inputs": { "text": "__param:negative_prompt__", "clip": [ "11", 1 ] },
+    "class_type": "CLIPTextEncode"
   },
   "8": {
     "inputs": {
@@ -66,47 +23,33 @@
       "sampler_name": "__param:sampler_name__",
       "scheduler": "__param:scheduler__",
       "denoise": 1,
-      "model": [
-        "5",
-        0
-      ],
-      "positive": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
-      "latent_image": [
-        "10",
-        0
-      ]
+      "model": [ "5", 0 ],
+      "positive": [ "6", 0 ],
+      "negative": [ "7", 0 ],
+      "latent_image": [ "10", 0 ]
     },
     "class_type": "KSampler"
   },
   "9": {
     "inputs": {
       "filename_prefix": "__param:output_path__",
-      "images": [
-        "8",
-        0
-      ]
+      "images": [ "12", 0 ]
     },
-    "class_type": "PreviewImage"
+    "class_type": "SaveImage"
   },
   "10": {
-    "inputs": {
-      "width": "__param:width__",
-      "height": "__param:height__",
-      "batch_size": 1
-    },
+    "inputs": { "width": "__param:width__", "height": "__param:height__", "batch_size": 1 },
     "class_type": "EmptyLatentImage"
   },
   "11": {
-    "inputs": {
-      "ckpt_name": "__param:checkpoint_name__"
-    },
+    "inputs": { "ckpt_name": "__param:checkpoint_name__" },
     "class_type": "CheckpointLoaderSimple"
+  },
+  "12": {
+    "inputs": {
+      "samples": [ "8", 0 ],
+      "vae": [ "11", 2 ]
+    },
+    "class_type": "VAEDecode"
   }
 }
