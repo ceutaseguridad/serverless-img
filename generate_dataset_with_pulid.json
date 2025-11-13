@@ -1,0 +1,150 @@
+{
+  "3": {
+    "inputs": {
+      "seed": "__param:seed__",
+      "steps": "__param:steps__",
+      "cfg": "__param:cfg_scale__",
+      "sampler_name": "__param:sampler_name__",
+      "scheduler": "__param:scheduler__",
+      "denoise": 1,
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "__param:checkpoint_name__"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint (Base Model)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": "__param:width__",
+      "height": "__param:height__",
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "__param:prompt__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "__param:negative_prompt__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "__param:output_path__",
+      "images": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "10": {
+    "inputs": {
+      "image": "__param:base_image_pod_path__"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Reference Image"
+    }
+  },
+  "12": {
+    "inputs": {
+      "pulid_ckpt_name": "pulid_v1.1.safetensors"
+    },
+    "class_type": "PuLID_Loader",
+    "_meta": {
+      "title": "PuLID Loader"
+    }
+  },
+  "13": {
+    "inputs": {
+      "fidelity": 0.8,
+      "pulid_model": [
+        "12",
+        0
+      ],
+      "model": [
+        "4",
+        0
+      ],
+      "clip": [
+        "4",
+        1
+      ],
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "PuLID_Apply",
+    "_meta": {
+      "title": "PuLID Apply"
+    }
+  }
+}
