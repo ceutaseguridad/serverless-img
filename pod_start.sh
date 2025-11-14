@@ -51,10 +51,23 @@ while [ ! -d "$CACHE_DIR" ]; do
 done
 echo " ¡Volumen persistente verificado en /runpod-volume!"
 
+# --- [INICIO DE LA MODIFICACIÓN DE DEPURACIÓN] ---
 # --- FASE 4: PREPARACIÓN DEL ENTORNO ---
+echo "[MORPHEUS-STARTUP] FASE 4: Preparando entorno de workflows..."
+
+# Paso de depuración: Listar lo que ve el script ANTES de copiar
+echo "[MORPHEUS-STARTUP]    -> Contenido detectado en ${CONFIG_SOURCE_DIR}/workflows/:"
+ls -l "${CONFIG_SOURCE_DIR}/workflows/"
+
+# El comando de copia
 mkdir -p "${WORKFLOWS_DEST_DIR}"
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"
 echo "[MORPHEUS-STARTUP]    -> Workflows copiados a '${WORKFLOWS_DEST_DIR}'."
+
+# Paso de depuración: Listar lo que se ha copiado DESPUÉS
+echo "[MORPHEUS-STARTUP]    -> Contenido verificado en ${WORKFLOWS_DEST_DIR}/:"
+ls -l "${WORKFLOWS_DEST_DIR}/"
+# --- [FIN DE LA MODIFICACIÓN DE DEPURACIÓN] ---
 
 cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler de ComfyUI copiado."
