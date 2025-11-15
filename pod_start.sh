@@ -14,8 +14,8 @@ apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-de
 # --- INICIO DE LA PUTA CORRECCIÓN FINAL ---
 # 1. Forzamos la instalación de la versión correcta de insightface, ignorando la caché.
 echo "[MORPHEUS-STARTUP]    -> Forzando instalación de insightface v0.7.3..."
-pip install --upgrade --no-cache-dir --force-reinstall insightface==0.7.3 onnxruntime-gpu facexlib timm ftfy requests xformers
-
+echo "[MORPHEUS-STARTUP]    -> Forzando instalación de TODAS las dependencias con control de versiones..."
+pip install --upgrade --no-cache-dir --force-reinstall insightface==0.7.3 onnxruntime-gpu facexlib timm ftfy requests xformers "huggingface-hub<1.0"
 # --- FIN DE LA PUTA CORRECCIÓN FINAL ---
 
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
