@@ -9,7 +9,7 @@ set -o pipefail
 
 # --- FASE 1: INSTALACIÓN DE DEPENDENCIAS (VERSIÓN FINAL, COJONES) ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
-apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-dev curl > /dev/null 2>&1
+apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-dev curl unzip > /dev/null 2>&1
 
 # --- INICIO DE LA PUTA CORRECCIÓN FINAL ---
 # 1. Forzamos la instalación de la versión correcta de insightface, ignorando la caché.
