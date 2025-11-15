@@ -99,24 +99,30 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
     case "$type" in
         GIT)
             # Esto ya estaba bien
-            SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
+            SOURCE_PATH="${CACHE_DIR}/${name}"; DEST_PATH="${CUSTOM_NODES_DIR}/${name}";
             if [ -d "$SOURCE_PATH" ]; then ln -sf "${SOURCE_PATH}" "${DEST_PATH}"; fi ;;
         URL_AUTH)
             # [LA CORRECCIÓN FINAL]
             # Ahora enlazamos el ARCHIVO, no la CARPETA.
-            MODEL_FOLDER=$(dirname "${name}"); 
+            MODEL_FOLDER=$(dirname "${name}");
             MODEL_FILENAME=$(basename "${name}");
             SOURCE_FILE_PATH="${CACHE_DIR}/${MODEL_FOLDER}/${MODEL_FILENAME}";
             DEST_FOLDER_PATH="${MODELS_DIR}/${MODEL_FOLDER}";
-            
-            if [ -f "$SOURCE_FILE_PATH" ]; then 
+
+            if [ -f "$SOURCE_FILE_PATH" ]; then
                 mkdir -p "$DEST_FOLDER_PATH";
-                ln -sf "$SOURCE_FILE_PATH" "$DEST_FOLDER_PATH"; 
+                ln -sf "$SOURCE_FILE_PATH" "$DEST_FOLDER_PATH";
             fi ;;
     esac
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
-echo "[MORPHEUS-STARTUP]    -> Enlaces completados."
 
+# --- INICIO DE LA CORRECCIÓN ESPECÍFICA PARA PuLID ---
+echo "[MORPHEUS-STARTUP]    -> Creando enlace específico para el modelo PuLID..."
+mkdir -p "${MODELS_DIR}/pulid/"
+ln -sf "${CACHE_DIR}/checkpoints/pulid_v1.1.safetensors" "${MODELS_DIR}/pulid/"
+# --- FIN DE LA CORRECCIÓN ESPECÍFICA PARA PuLID ---
+
+echo "[MORPHEUS-STARTUP]    -> Enlaces completados."
 # --- FASE 5: INICIO DE SERVICIOS ---
 echo "[MORPHEUS-STARTUP] FASE 5: Iniciando servicios..."
 python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 --verbose &
