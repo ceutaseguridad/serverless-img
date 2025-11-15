@@ -13,7 +13,7 @@ apt-get update > /dev/null 2>&1 && apt-get install -y curl > /dev/null 2>&1
 
 # --- INICIO DE LA PUTA CORRECCIÓN ---
 # Forzamos la actualización de insightface a la última versión para que sea compatible con el nodo de PuLID.
-pip install --upgrade insightface
+pip install --no-cache-dir --force-reinstall insightface==0.7.3
 # Instalamos el resto de dependencias.
 pip install onnxruntime-gpu facexlib timm ftfy requests > /dev/null 2>&1
 # --- FIN DE LA PUTA CORRECCIÓN --
