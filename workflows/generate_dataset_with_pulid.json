@@ -115,36 +115,59 @@
   },
   "12": {
     "inputs": {
-      "pulid_ckpt_name": "pulid_v1.1.safetensors"
+      "pulid_file": "pulid_v1.1.safetensors"
     },
     "class_type": "PulidModelLoader",
     "_meta": {
-      "title": "PuLID Loader"
+      "title": "Load PuLID Model"
     }
   },
   "13": {
     "inputs": {
-      "fidelity": 0.8,
-      "pulid_model": [
-        "12",
-        0
-      ],
       "model": [
         "4",
         0
       ],
-      "clip": [
-        "4",
-        1
+      "pulid": [
+        "12",
+        0
+      ],
+      "eva_clip": [
+        "15",
+        0
+      ],
+      "face_analysis": [
+        "14",
+        0
       ],
       "image": [
         "10",
         0
-      ]
+      ],
+      "method": "__param:method__",
+      "weight": "__param:weight__",
+      "start_at": "__param:start_at__",
+      "end_at": "__param:end_at__"
     },
     "class_type": "ApplyPulid",
     "_meta": {
-      "title": "PuLID Apply"
+      "title": "Apply PuLID"
+    }
+  },
+  "14": {
+    "inputs": {
+      "provider": "CPU"
+    },
+    "class_type": "PulidInsightFaceLoader",
+    "_meta": {
+      "title": "Load InsightFace (PuLID)"
+    }
+  },
+  "15": {
+    "inputs": {},
+    "class_type": "PulidEvaClipLoader",
+    "_meta": {
+      "title": "Load Eva Clip (PuLID)"
     }
   }
 }
