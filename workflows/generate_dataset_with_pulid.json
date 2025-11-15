@@ -117,7 +117,7 @@
     "inputs": {
       "pulid_ckpt_name": "pulid_v1.1.safetensors"
     },
-    "class_type": "PuLID_Loader",
+    "class_type": "PulidModelLoader",
     "_meta": {
       "title": "PuLID Loader"
     }
