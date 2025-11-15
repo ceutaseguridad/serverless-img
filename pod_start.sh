@@ -73,6 +73,25 @@ cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 echo "[MORPHEUS-STARTUP]    -> Handler de ComfyUI copiado."
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
+# ==============================================================================
+# BLOQUE DE VERIFICACIÓN DE RUTA - INICIO
+# ==============================================================================
+echo "--- INICIO VERIFICACIÓN DE RECURSOS (TAREA SIMPLE) ---"
+echo "El script va a leer la lista de nodos desde esta ruta exacta:"
+echo "    -> ${RESOURCE_FILE}"
+echo ""
+echo "Comprobando si el fichero existe en esa ruta..."
+ls -l "${RESOURCE_FILE}" || echo "    -> ERROR: El fichero NO EXISTE en la ruta especificada."
+echo ""
+echo "Contenido del fichero que se va a leer:"
+echo "----------------------------------------------------"
+cat "${RESOURCE_FILE}" || echo "    -> ERROR: No se pudo leer el contenido del fichero."
+echo "----------------------------------------------------"
+echo "--- FIN VERIFICACIÓN DE RECURSOS ---"
+# ==============================================================================
+# BLOQUE DE VERIFICACIÓN DE RUTA - FIN
+# ==============================================================================
+
 echo "[MORPHEUS-STARTUP] FASE 4: Creando enlaces simbólicos..."
 while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
