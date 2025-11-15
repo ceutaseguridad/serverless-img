@@ -14,15 +14,8 @@ apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-de
 # --- INICIO DE LA PUTA CORRECCIÓN FINAL ---
 # 1. Forzamos la instalación de la versión correcta de insightface, ignorando la caché.
 echo "[MORPHEUS-STARTUP]    -> Forzando instalación de insightface v0.7.3..."
-pip install --no-cache-dir --force-reinstall insightface==0.7.3
+pip install --upgrade --no-cache-dir --force-reinstall insightface==0.7.3 onnxruntime-gpu facexlib timm ftfy requests xformers
 
-# 2. Instalamos el resto de dependencias del handler.
-echo "[MORPHEUS-STARTUP]    -> Instalando dependencias del handler..."
-pip install onnxruntime-gpu facexlib timm ftfy requests > /dev/null 2>&1
-
-# 3. Instalamos xformers para optimizar la VRAM y eliminar la advertencia.
-echo "[MORPHEUS-STARTUP]    -> Instalando xformers para optimización..."
-pip install xformers
 # --- FIN DE LA PUTA CORRECCIÓN FINAL ---
 
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
