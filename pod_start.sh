@@ -7,16 +7,23 @@
 set -e
 set -o pipefail
 
-# --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
+# --- FASE 1: INSTALACIÓN DE DEPENDENCIAS (VERSIÓN FINAL, COJONES) ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 apt-get update > /dev/null 2>&1 && apt-get install -y curl > /dev/null 2>&1
 
-# --- INICIO DE LA PUTA CORRECCIÓN ---
-# Forzamos la actualización de insightface a la última versión para que sea compatible con el nodo de PuLID.
+# --- INICIO DE LA PUTA CORRECCIÓN FINAL ---
+# 1. Forzamos la instalación de la versión correcta de insightface, ignorando la caché.
+echo "[MORPHEUS-STARTUP]    -> Forzando instalación de insightface v0.7.3..."
 pip install --no-cache-dir --force-reinstall insightface==0.7.3
-# Instalamos el resto de dependencias.
+
+# 2. Instalamos el resto de dependencias del handler.
+echo "[MORPHEUS-STARTUP]    -> Instalando dependencias del handler..."
 pip install onnxruntime-gpu facexlib timm ftfy requests > /dev/null 2>&1
-# --- FIN DE LA PUTA CORRECCIÓN --
+
+# 3. Instalamos xformers para optimizar la VRAM y eliminar la advertencia.
+echo "[MORPHEUS-STARTUP]    -> Instalando xformers para optimización..."
+pip install xformers
+# --- FIN DE LA PUTA CORRECCIÓN FINAL ---
 
 echo "[MORPHEUS-STARTUP]    -> Dependencias instaladas."
 
