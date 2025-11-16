@@ -118,7 +118,7 @@
     "inputs": {
       "provider": "CPU"
     },
-    "class_type": "InsightFaceLoader_",
+    "class_type": "InsightFaceLoader",
     "_meta": {
       "title": "1. Load InsightFace"
     }
