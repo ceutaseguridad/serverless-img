@@ -1,0 +1,194 @@
+{
+  "3": {
+    "inputs": {
+      "seed": "__param:seed__",
+      "steps": "__param:steps__",
+      "cfg": "__param:cfg_scale__",
+      "sampler_name": "__param:sampler_name__",
+      "scheduler": "__param:scheduler__",
+      "denoise": 1,
+      "model": [
+        "21",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "__param:checkpoint_name__"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "1. Load Checkpoint (SDXL Base)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": "__param:width__",
+      "height": "__param:height__",
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image (Define Size)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "__param:prompt__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive Prompt"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "__param:negative_prompt__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "__param:output_path__",
+      "images": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "5. Save Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "10": {
+    "inputs": {
+      "image": "__param:base_image_pod_path__",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Reference Image (Influencer)"
+    }
+  },
+  "17": {
+    "inputs": {
+      "provider": "CPU"
+    },
+    "class_type": "InsightFaceLoader",
+    "_meta": {
+      "title": "1. Load InsightFace"
+    }
+  },
+  "18": {
+    "inputs": {
+      "instantid_file": "ip-adapter-instantid-sdxl.bin",
+      "controlnet_file": "control-lora-rank-256-instantid.safetensors"
+    },
+    "class_type": "InstantIDModelLoader",
+    "_meta": {
+      "title": "1. Load InstantID Models"
+    }
+  },
+  "20": {
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "instantid": [
+        "18",
+        0
+      ],
+      "controlnet": [
+        "18",
+        1
+      ],
+      "insightface": [
+        "17",
+        0
+      ],
+      "image": [
+        "10",
+        0
+      ],
+      "image_kps": [
+        "10",
+        0
+      ],
+      "prompt": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "style": "Vivid",
+      "weight_style": "__param:style_weight__",
+      "weight_face": "__param:face_weight__",
+      "ip_adapter_noise": 0,
+      "cn_strength": "__param:pose_weight__",
+      "mask_face": false
+    },
+    "class_type": "InstantID",
+    "_meta": {
+      "title": "2. Apply InstantID (CORE NODE)"
+    }
+  },
+  "21": {
+    "inputs": {
+      "model": [
+        "20",
+        0
+      ]
+    },
+    "class_type": "InstantIDPostPipe",
+    "_meta": {
+      "title": "3. Post-Processing Pipe"
+    }
+  }
+}
