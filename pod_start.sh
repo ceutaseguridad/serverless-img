@@ -89,7 +89,10 @@ fi
 
 # --- FASE 5: INICIO DE SERVICIOS ---
 echo "[MORPHEUS-STARTUP] FASE 5: Iniciando servicios..."
-python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 --verbose &
+# Redirige stdout y stderr a un archivo de log en el volumen persistente
+LOG_FILE="${NETWORK_VOLUME_PATH}/comfyui_startup.log"
+echo "[MORPHEUS-STARTUP] Iniciando ComfyUI. El log se guardará en ${LOG_FILE}"
+python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 --verbose > "${LOG_FILE}" 2>&1 &
 echo "[MORPHEUS-STARTUP]    -> Servidor de ComfyUI iniciado."
 TIMEOUT=180; ELAPSED=0; while true; do if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then echo; echo "[MORPHEUS-STARTUP] -> ¡Servidor de ComfyUI está listo!"; break; else echo -n "."; fi; if [ "$ELAPSED" -ge "$TIMEOUT" ]; then echo "¡ERROR FATAL! ComfyUI no respondió."; exit 1; fi; sleep 3; ELAPSED=$((ELAPSED + 3)); done
 echo "====================================================================="; echo "--- CONFIGURACIÓN DE MORPHEUS COMPLETADA CON ÉXITO ---"; echo "====================================================================="
