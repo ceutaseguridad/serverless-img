@@ -30,3 +30,5 @@ MODEL,controlnet,lllyasviel/ControlNet-v1-1,control_v11p_sd15_scribble.pth
 GIT, ComfyUI_InstantID, https://github.com/cubiq/ComfyUI_InstantID.git
 URL_AUTH, insightface, DUMMY_URL
 URL_AUTH, ipadapter, DUMMY_URL
+URL_AUTH, controlnet, DUMMY_URL
+
