@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v36.0 (Arquitectura Persistente y Robusta)
+# Script de Arranque v37.0 (Arranque Diferido)
 # ==============================================================================
 
 # set -e # Descomentar para debug si algo falla
@@ -25,12 +25,10 @@ pip install --upgrade pip
 
 # --- FASE 1.5: CONSTRUCCIÓN DEL ENTORNO BASE MODERNO ---
 echo "[INFO] FASE 1.5: Construyendo el entorno Python base con versiones modernas y compatibles..."
-# Se instala onnxruntime-gpu >= 1.18, que es compatible con NumPy 2.x, resolviendo el conflicto de raíz.
 pip install --no-cache-dir "numpy>=2.0" "onnxruntime-gpu>=1.18" opencv-python-headless insightface==0.7.3 facexlib timm ftfy
 
 # --- FASES 2 Y 3: DEFINICIÓN DE RUTAS Y VERIFICACIÓN ---
 echo "[INFO] FASE 2: Definiendo rutas..."
-# El pod serverless ve el volumen como /runpod-volume, aunque el pod persistente lo vea como /workspace.
 CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
@@ -43,9 +41,8 @@ WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge 
 echo " ¡Volumen persistente verificado!"
 
 
-# --- FASE 4: ENLACES DESDE ALMACENAMIENTO PERSISTENTE ---
-echo "[INFO] FASE 4: Creando enlaces desde el almacenamiento persistente y instalando dependencias de nodos..."
-# Se asegura de que los directorios de destino existan. ESTA ERA LA PUTA CLAVE.
+# --- FASE 4: PREPARACIÓN FÍSICA ANTES DEL ARRANQUE ---
+echo "[INFO] FASE 4: Creando enlaces desde el almacenamiento persistente..."
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
 
@@ -55,12 +52,10 @@ RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
-    # El origen SIEMPRE está en el almacenamiento persistente (/runpod-volume)
     SOURCE_PATH="${CACHE_DIR}/${name}"
     
     case "$type" in
         GIT)
-            # El destino SIEMPRE está en la carpeta local de ComfyUI
             DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
             if [ -d "$SOURCE_PATH" ]; then
                 echo "Enlazando nodo desde '$SOURCE_PATH' a '$DEST_PATH'..."
@@ -71,13 +66,12 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
                     pip install -r "$REQ_FILE"; 
                 fi; 
             else
-                echo "[AVISO] El directorio de origen '$SOURCE_PATH' para el nodo '$name' no existe en el almacenamiento persistente. Saltando enlace."
+                echo "[AVISO] El directorio de origen '$SOURCE_PATH' para el nodo '$name' no existe. Saltando enlace."
             fi;;
         URL_AUTH)
             DEST_PATH="${MODELS_DIR}/${name}"; 
-            if [ -e "$SOURCE_PATH" ]; then # -e comprueba si existe, sea archivo o directorio
+            if [ -e "$SOURCE_PATH" ]; then
                 echo "Enlazando modelo desde '$SOURCE_PATH' a '$DEST_PATH'..."
-                # Asegurarse de que el directorio padre del destino existe
                 mkdir -p "$(dirname "$DEST_PATH")"
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
             else
@@ -86,19 +80,20 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
     esac
 done
 
-# --- DIAGNÓSTICO FINAL Y ARRANQUE ---
-echo "[DIAGNOSIS] Contenido final de custom_nodes:"
+# --- DIAGNÓSTICO PRE-ARRANQUE ---
+echo "[DIAGNOSIS] Contenido final de custom_nodes ANTES de arrancar ComfyUI:"
 ls -l "${CUSTOM_NODES_DIR}"
-echo "[DIAGNOSIS] ESTADO FINAL DE DEPENDENCIAS:"
-pip list | grep -E "onnx|insightface|numpy|opencv"
-echo "[DIAGNOSIS] Resultado de 'pip check':"
+echo "[DIAGNOSIS] Resultado de 'pip check' ANTES de arrancar ComfyUI:"
 pip check || true
 
-echo "[INFO] FASE 5: Iniciando servicios..."
+
+# --- FASE 5: ARRANQUE DE SERVICIOS (AHORA AL FINAL) ---
+echo "[INFO] FASE 5: Todo preparado. Iniciando servicios..."
 COMFYUI_LOG_FILE="${NETWORK_VOLUME_PATH}/comfyui_log_${UNIQUE_ID}.txt"
 python3 "${COMFYUI_DIR}/main.py" --listen --port 8188 --verbose > "${COMFYUI_LOG_FILE}" 2>&1 &
-TIMEOUT=180; ELAPSED=0; while true; do if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then echo " ComfyUI está listo!"; break; else echo -n "."; fi; if [ "$ELAPSED" -ge "$TIMEOUT" ]; then echo "¡ERROR FATAL! ComfyUI no respondió."; exit 1; fi; sleep 3; ELAPSED=$((ELAPSED + 3)); done
+TIMEOUT=180; ELAPSED=0; while true; do if curl -s --head http://127.0.0.1:8188/ | head -n 1 | grep "200 OK" > /dev/null; then echo " ComfyUI está listo!"; break; else echo -n "."; fi; if [ "$ELAPSED" -ge "$TIMEOUT" ]; then echo "¡ERROR FATAL! ComfyUI no respondió."; cat "${COMFYUI_LOG_FILE}"; exit 1; fi; sleep 3; ELAPSED=$((ELAPSED + 3)); done
 
+# --- FASE 6: INICIO DEL HANDLER ---
 echo "[INFO] FASE 6: Iniciando handler..."
 cd "${CONFIG_SOURCE_DIR}"; exec python3 -u morpheus_handler.py
 
