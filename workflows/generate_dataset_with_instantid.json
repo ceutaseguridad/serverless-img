@@ -8,7 +8,7 @@
       "scheduler": "__param:scheduler__",
       "denoise": 1,
       "model": [
-        "21",
+        "20",
         0
       ],
       "positive": [
@@ -118,9 +118,9 @@
     "inputs": {
       "provider": "CPU"
     },
-    "class_type": "InsightFaceLoader",
+    "class_type": "InstantIDFaceAnalysis",
     "_meta": {
-      "title": "1. Load InsightFace"
+      "title": "1. Load Face Analysis Model"
     }
   },
   "18": {
@@ -174,21 +174,9 @@
       "cn_strength": "__param:pose_weight__",
       "mask_face": false
     },
-    "class_type": "InstantID",
+    "class_type": "ApplyInstantID",
     "_meta": {
       "title": "2. Apply InstantID (CORE NODE)"
-    }
-  },
-  "21": {
-    "inputs": {
-      "model": [
-        "20",
-        0
-      ]
-    },
-    "class_type": "InstantIDPostPipe",
-    "_meta": {
-      "title": "3. Post-Processing Pipe"
     }
   }
 }
