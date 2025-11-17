@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v33.9 (Solución de Mínima Invasión + Creación de Directorio Faltante)
+# Script de Arranque v34.0 (Estrategia de Pre-Instalación)
 # ==============================================================================
 
 # No usamos 'set -e' para que el script no muera y podamos registrar el error.
@@ -15,7 +15,7 @@ MASTER_LOG_FILE="${NETWORK_VOLUME_PATH}/log_${UNIQUE_ID}.txt"
 
 exec > >(tee -a "${MASTER_LOG_FILE}") 2>&1
 
-echo "--- INICIO DEL LOG DE MÍNIMA INVASIÓN (ID: ${UNIQUE_ID}) ---"
+echo "--- INICIO DEL LOG DE ARRANQUE (ID: ${UNIQUE_ID}) ---"
 echo "====================================================================="
 
 
@@ -25,7 +25,7 @@ apt-get update && apt-get install -y build-essential python3-dev curl unzip git
 pip install --upgrade pip
 pip install --no-cache-dir insightface==0.7.3 facexlib timm ftfy
 
-# --- FASES 2, 3 Y 4 ---
+# --- FASES 2 Y 3 ---
 echo "[INFO] FASE 2: Definiendo rutas..."
 CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
 NETWORK_VOLUME_PATH="/runpod-volume"
@@ -39,14 +39,15 @@ echo "[INFO] FASE 3: Verificando persistencia del volumen..."
 WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then echo "¡ERROR FATAL! '${CACHE_DIR}' no apareció."; exit 1; fi; echo -n "."; sleep 2; ELAPSED=$((ELAPSED + 2)); done;
 echo " ¡Volumen persistente verificado!"
 
-echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
+# --- [NUEVA FASE 3.5] PRE-INSTALACIÓN DE VERSIONES CRÍTICAS ---
+echo "[INFO] FASE 3.5: Pre-instalando y fijando versiones críticas compatibles..."
+# Esta es la combinación que funciona. Se instala ANTES que los requirements de los nodos.
+pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.3.1
 
-# --- [INICIO DE LA CORRECCIÓN DEFINITIVA] ---
-# Se crean explícitamente los directorios de destino para evitar errores.
+# --- FASE 4: ENLACES E INSTALACIÓN DE DEPENDENCIAS RESTANTES ---
+echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
-# --- [FIN DE LA CORRECCIÓN DEFINITIVA] ---
-
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
@@ -60,6 +61,7 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
+                    # pip ahora verá que las versiones ya están instaladas y no las tocará
                     pip install -r "$REQ_FILE"; 
                 fi; 
             fi;;
@@ -74,10 +76,6 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
             fi;;
     esac
 done
-
-# --- FASE 4.5: ARMONIZACIÓN NO DESTRUCTIVA ---
-echo "[INFO] FASE 4.5: Iniciando armonización NO DESTRUCTIVA..."
-pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.1.0 albucore==0.0.6
 
 # --- DIAGNÓSTICO FINAL Y ARRANQUE ---
 echo "[DIAGNOSIS] ESTADO FINAL DE DEPENDENCIAS:"
