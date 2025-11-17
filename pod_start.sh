@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v37.2 (Fontanería Reforzada)
+# Script de Arranque v37.3 (Fontanería Definitiva)
 # ==============================================================================
 
 # set -e # Descomentar para debug si algo falla
@@ -45,31 +45,27 @@ echo " ¡Volumen persistente verificado!"
 echo "[INFO] FASE 4: Creando enlaces desde el almacenamiento persistente..."
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
+mkdir -p "${MODELS_DIR}" # Asegurarse de que la carpeta de modelos principal existe
 
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
-# --- [INICIO DE LA CORRECCIÓN DE FONTANERÍA] ---
-# Se crean explícitamente los enlaces a las carpetas de modelos críticos.
+# --- [INICIO DE LA CORRECCIÓN DE FONTANERÍA DEFINITIVA] ---
 echo "[ACCIÓN] Creando enlaces explícitos para modelos críticos..."
 IPADAPTER_SOURCE_DIR="${CACHE_DIR}/ipadapter"
-IPADAPTER_DEST_DIR="${MODELS_DIR}/ipadapter"
 if [ -d "$IPADAPTER_SOURCE_DIR" ]; then
-    mkdir -p "$IPADAPTER_DEST_DIR"
-    ln -sf "$IPADAPTER_SOURCE_DIR"/* "$IPADAPTER_DEST_DIR/"
-    echo "Enlace para modelos IPAdapter creado."
+    ln -sf "$IPADAPTER_SOURCE_DIR" "$MODELS_DIR"
+    echo "Enlace para la carpeta IPAdapter creado."
 else
     echo "[AVISO] Directorio de origen para IPAdapter no encontrado: $IPADAPTER_SOURCE_DIR"
 fi
 CONTROLNET_SOURCE_DIR="${CACHE_DIR}/controlnet"
-CONTROLNET_DEST_DIR="${MODELS_DIR}/controlnet"
 if [ -d "$CONTROLNET_SOURCE_DIR" ]; then
-    mkdir -p "$CONTROLNET_DEST_DIR"
-    ln -sf "$CONTROLNET_SOURCE_DIR"/* "$CONTROLNET_DEST_DIR/"
-    echo "Enlace para modelos ControlNet creado."
+    ln -sf "$CONTROLNET_SOURCE_DIR" "$MODELS_DIR"
+    echo "Enlace para la carpeta ControlNet creado."
 else
     echo "[AVISO] Directorio de origen para ControlNet no encontrado: $CONTROLNET_SOURCE_DIR"
 fi
-# --- [FIN DE LA CORRECCIÓN DE FONTANERÍA] ---
+# --- [FIN DE LA CORRECCIÓN DE FONTANERÍA DEFINITIVA] ---
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
@@ -106,6 +102,10 @@ done
 # --- DIAGNÓSTICO PRE-ARRANQUE ---
 echo "[DIAGNOSIS] Contenido final de custom_nodes ANTES de arrancar ComfyUI:"
 ls -l "${CUSTOM_NODES_DIR}"
+echo "[DIAGNOSIS] Contenido final de models ANTES de arrancar ComfyUI:"
+ls -l "${MODELS_DIR}"
+ls -l "${MODELS_DIR}/ipadapter"
+ls -l "${MODELS_DIR}/controlnet"
 echo "[DIAGNOSIS] Resultado de 'pip check' ANTES de arrancar ComfyUI:"
 pip check || true
 
