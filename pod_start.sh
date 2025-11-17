@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v35.0 (Estrategia de Construcción Limpia y Moderna)
+# Script de Arranque v36.0 (Arquitectura Persistente y Robusta)
 # ==============================================================================
 
 # set -e # Descomentar para debug si algo falla
@@ -23,15 +23,15 @@ echo "[INFO] FASE 1: Instalando dependencias del sistema..."
 apt-get update && apt-get install -y build-essential python3-dev curl unzip git
 pip install --upgrade pip
 
-# --- [NUEVA FASE 1.5] CONSTRUCCIÓN DEL ENTORNO BASE MODERNO ---
+# --- FASE 1.5: CONSTRUCCIÓN DEL ENTORNO BASE MODERNO ---
 echo "[INFO] FASE 1.5: Construyendo el entorno Python base con versiones modernas y compatibles..."
-# Se instala onnxruntime-gpu 1.18, que es compatible con NumPy 2.x, resolviendo el conflicto de raíz.
+# Se instala onnxruntime-gpu >= 1.18, que es compatible con NumPy 2.x, resolviendo el conflicto de raíz.
 pip install --no-cache-dir "numpy>=2.0" "onnxruntime-gpu>=1.18" opencv-python-headless insightface==0.7.3 facexlib timm ftfy
 
 # --- FASES 2 Y 3: DEFINICIÓN DE RUTAS Y VERIFICACIÓN ---
 echo "[INFO] FASE 2: Definiendo rutas..."
+# El pod serverless ve el volumen como /runpod-volume, aunque el pod persistente lo vea como /workspace.
 CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
-NETWORK_VOLUME_PATH="/runpod-volume"
 CACHE_DIR="${NETWORK_VOLUME_PATH}/morpheus_model_cache"
 WORKFLOWS_DEST_DIR="${NETWORK_VOLUME_PATH}/morpheus_lib/workflows"
 COMFYUI_DIR="/comfyui"
@@ -43,42 +43,54 @@ WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge 
 echo " ¡Volumen persistente verificado!"
 
 
-# --- FASE 4: ENLACES E INSTALACIÓN DE DEPENDENCIAS DE NODOS ---
-echo "[INFO] FASE 4: Creando enlaces e instalando dependencias adicionales de nodos..."
+# --- FASE 4: ENLACES DESDE ALMACENAMIENTO PERSISTENTE ---
+echo "[INFO] FASE 4: Creando enlaces desde el almacenamiento persistente y instalando dependencias de nodos..."
+# Se asegura de que los directorios de destino existan. ESTA ERA LA PUTA CLAVE.
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
+
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
-    type=$(echo "$type" | xargs); name=$(echo "$name" | xargs); SOURCE_PATH="${CACHE_DIR}/${name}"
+    type=$(echo "$type" | xargs); name=$(echo "$name" | xargs)
+    # El origen SIEMPRE está en el almacenamiento persistente (/runpod-volume)
+    SOURCE_PATH="${CACHE_DIR}/${name}"
+    
     case "$type" in
         GIT)
+            # El destino SIEMPRE está en la carpeta local de ComfyUI
             DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
-            if [ -d "$SOURCE_PATH" ]; then 
+            if [ -d "$SOURCE_PATH" ]; then
+                echo "Enlazando nodo desde '$SOURCE_PATH' a '$DEST_PATH'..."
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
-                    # pip verá que las versiones core ya están instaladas y no las tocará.
+                    echo "Instalando requirements para '$name'..."
                     pip install -r "$REQ_FILE"; 
                 fi; 
+            else
+                echo "[AVISO] El directorio de origen '$SOURCE_PATH' para el nodo '$name' no existe en el almacenamiento persistente. Saltando enlace."
             fi;;
         URL_AUTH)
             DEST_PATH="${MODELS_DIR}/${name}"; 
-            if [ -d "$SOURCE_PATH" ]; then 
-                mkdir -p "$DEST_PATH"; 
-                ln -sf "$SOURCE_PATH"/* "$DEST_PATH/"; 
-            elif [ -f "$SOURCE_PATH" ]; then 
-                mkdir -p "$(dirname "$DEST_PATH")"; 
+            if [ -e "$SOURCE_PATH" ]; then # -e comprueba si existe, sea archivo o directorio
+                echo "Enlazando modelo desde '$SOURCE_PATH' a '$DEST_PATH'..."
+                # Asegurarse de que el directorio padre del destino existe
+                mkdir -p "$(dirname "$DEST_PATH")"
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
+            else
+                 echo "[AVISO] El archivo/directorio de origen '$SOURCE_PATH' para el modelo '$name' no existe. Saltando enlace."
             fi;;
     esac
 done
 
 # --- DIAGNÓSTICO FINAL Y ARRANQUE ---
+echo "[DIAGNOSIS] Contenido final de custom_nodes:"
+ls -l "${CUSTOM_NODES_DIR}"
 echo "[DIAGNOSIS] ESTADO FINAL DE DEPENDENCIAS:"
-pip list | grep -E "onnx|insightface|numpy|opencv|albumentations|albucore"
+pip list | grep -E "onnx|insightface|numpy|opencv"
 echo "[DIAGNOSIS] Resultado de 'pip check':"
 pip check || true
 
