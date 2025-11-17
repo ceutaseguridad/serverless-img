@@ -8,16 +8,16 @@
       "scheduler": "__param:scheduler__",
       "denoise": 1,
       "model": [
-        "4",
+        "20",
         0
       ],
       "positive": [
         "20",
-        0
+        1
       ],
       "negative": [
-        "21",
-        0
+        "20",
+        2
       ],
       "latent_image": [
         "5",
@@ -135,63 +135,25 @@
   },
   "20": {
     "inputs": {
-      "conditioning": [
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
         "6",
         0
       ],
-      "control_net": [
-        "18",
-        1
-      ],
-      "image": [
-        "10",
-        0
-      ],
-      "weight": "__param:pose_weight__",
-      "start_at": 0,
-      "end_at": 1
-    },
-    "class_type": "ControlNetApplyAdvanced",
-    "_meta": {
-      "title": "Apply Pose ControlNet"
-    }
-  },
-  "21": {
-    "inputs": {
-      "conditioning": [
-        "7",
-        0
-      ],
-      "control_net": [
-        "18",
-        1
-      ],
-      "image": [
-        "10",
-        0
-      ],
-      "weight": "__param:pose_weight__",
-      "start_at": 0,
-      "end_at": 1
-    },
-    "class_type": "ControlNetApplyAdvanced",
-    "_meta": {
-      "title": "Apply Pose ControlNet (Negative)"
-    }
-  },
-  "22": {
-    "inputs": {
-      "positive": [
-        "20",
-        0
-      ],
       "negative": [
-        "21",
+        "7",
         0
       ],
       "instantid": [
         "18",
         0
+      ],
+      "controlnet": [
+        "18",
+        1
       ],
       "insightface": [
         "17",
@@ -201,12 +163,18 @@
         "10",
         0
       ],
-      "image_weight": "__param:face_weight__",
-      "style_weight": "__param:style_weight__"
+      "image_kps": [
+        "10",
+        0
+      ],
+      "style": "Vivid",
+      "weight_style": "__param:style_weight__",
+      "weight_face": "__param:face_weight__",
+      "weight_pose": "__param:pose_weight__"
     },
-    "class_type": "ApplyInstantID",
+    "class_type": "ApplyInstantIDAdvanced",
     "_meta": {
-      "title": "Apply InstantID"
+      "title": "Apply InstantID (CORE NODE)"
     }
   }
 }
