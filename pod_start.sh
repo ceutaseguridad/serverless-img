@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v34.0 (Estrategia de Pre-Instalación)
+# Script de Arranque v34.1 (Estrategia de Pre-Instalación Completa)
 # ==============================================================================
 
 # No usamos 'set -e' para que el script no muera y podamos registrar el error.
@@ -41,8 +41,8 @@ echo " ¡Volumen persistente verificado!"
 
 # --- [NUEVA FASE 3.5] PRE-INSTALACIÓN DE VERSIONES CRÍTICAS ---
 echo "[INFO] FASE 3.5: Pre-instalando y fijando versiones críticas compatibles..."
-# Esta es la combinación que funciona. Se instala ANTES que los requirements de los nodos.
-pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.3.1
+# Esta es la combinación completa y compatible. Se instala ANTES que los requirements de los nodos.
+pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.3.1 albucore==0.0.13
 
 # --- FASE 4: ENLACES E INSTALACIÓN DE DEPENDENCIAS RESTANTES ---
 echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
