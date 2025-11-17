@@ -78,7 +78,7 @@ done
 
 # --- FASE 4.5: ARMONIZACIÓN NO DESTRUCTIVA ---
 echo "[INFO] FASE 4.5: Iniciando armonización NO DESTRUCTIVA..."
-pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.3.1 albucore==0.0.13
+pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.1.0
 
 # --- DIAGNÓSTICO FINAL Y ARRANQUE ---
 echo "[DIAGNOSIS] ESTADO FINAL DE DEPENDENCIAS:"
