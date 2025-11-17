@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v37.0 (Arranque Diferido)
+# Script de Arranque v37.2 (Fontanería Reforzada)
 # ==============================================================================
 
 # set -e # Descomentar para debug si algo falla
@@ -48,6 +48,29 @@ mkdir -p "${WORKFLOWS_DEST_DIR}"
 
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
+# --- [INICIO DE LA CORRECCIÓN DE FONTANERÍA] ---
+# Se crean explícitamente los enlaces a las carpetas de modelos críticos.
+echo "[ACCIÓN] Creando enlaces explícitos para modelos críticos..."
+IPADAPTER_SOURCE_DIR="${CACHE_DIR}/ipadapter"
+IPADAPTER_DEST_DIR="${MODELS_DIR}/ipadapter"
+if [ -d "$IPADAPTER_SOURCE_DIR" ]; then
+    mkdir -p "$IPADAPTER_DEST_DIR"
+    ln -sf "$IPADAPTER_SOURCE_DIR"/* "$IPADAPTER_DEST_DIR/"
+    echo "Enlace para modelos IPAdapter creado."
+else
+    echo "[AVISO] Directorio de origen para IPAdapter no encontrado: $IPADAPTER_SOURCE_DIR"
+fi
+CONTROLNET_SOURCE_DIR="${CACHE_DIR}/controlnet"
+CONTROLNET_DEST_DIR="${MODELS_DIR}/controlnet"
+if [ -d "$CONTROLNET_SOURCE_DIR" ]; then
+    mkdir -p "$CONTROLNET_DEST_DIR"
+    ln -sf "$CONTROLNET_SOURCE_DIR"/* "$CONTROLNET_DEST_DIR/"
+    echo "Enlace para modelos ControlNet creado."
+else
+    echo "[AVISO] Directorio de origen para ControlNet no encontrado: $CONTROLNET_SOURCE_DIR"
+fi
+# --- [FIN DE LA CORRECCIÓN DE FONTANERÍA] ---
+
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
@@ -62,8 +85,8 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
-                    echo "Instalando requirements para '$name'..."
-                    pip install -r "$REQ_FILE"; 
+                    echo "Instalando requirements para '$name' (modo defensivo)..."
+                    pip install --upgrade-strategy "only-if-needed" -r "$REQ_FILE"; 
                 fi; 
             else
                 echo "[AVISO] El directorio de origen '$SOURCE_PATH' para el nodo '$name' no existe. Saltando enlace."
