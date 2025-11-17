@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v33.1 (Solución de Mínima Invasión + Logs Únicos + Corrección de Sintaxis)
+# Script de Arranque v33.9 (Solución de Mínima Invasión + Creación de Directorio Faltante)
 # ==============================================================================
 
 # No usamos 'set -e' para que el script no muera y podamos registrar el error.
@@ -10,12 +10,9 @@ set -o pipefail
 
 # --- FASE 0: PREPARACIÓN DE LOGS ÚNICOS ---
 NETWORK_VOLUME_PATH="/runpod-volume"
-# Crea un nombre de fichero único usando la fecha y hora hasta los nanosegundos
 UNIQUE_ID=$(date +%Y%m%d_%H%M%S_%N)
 MASTER_LOG_FILE="${NETWORK_VOLUME_PATH}/log_${UNIQUE_ID}.txt"
 
-# Usamos 'exec' para redirigir TODA la salida del script (stdout y stderr) a nuestro log.
-# Esto es más robusto que añadir '>> $LOG' a cada línea.
 exec > >(tee -a "${MASTER_LOG_FILE}") 2>&1
 
 echo "--- INICIO DEL LOG DE MÍNIMA INVASIÓN (ID: ${UNIQUE_ID}) ---"
@@ -43,11 +40,15 @@ WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge 
 echo " ¡Volumen persistente verificado!"
 
 echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
-mkdir -p "${WORKFLOWS_DEST_DIR}"; cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
-# --- [INICIO DEL CÓDIGO CORREGIDO] ---
-# Se utiliza una tubería (`|`) en lugar de la sustitución de procesos (`< <(...)`)
-# para asegurar la compatibilidad con el intérprete /bin/sh.
+# --- [INICIO DE LA CORRECCIÓN DEFINITIVA] ---
+# Se crean explícitamente los directorios de destino para evitar errores.
+mkdir -p "${CUSTOM_NODES_DIR}"
+mkdir -p "${WORKFLOWS_DEST_DIR}"
+# --- [FIN DE LA CORRECCIÓN DEFINITIVA] ---
+
+cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
+
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
@@ -73,8 +74,6 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
             fi;;
     esac
 done
-# --- [FIN DEL CÓDIGO CORREGIDO] ---
-
 
 # --- FASE 4.5: ARMONIZACIÓN NO DESTRUCTIVA ---
 echo "[INFO] FASE 4.5: Iniciando armonización NO DESTRUCTIVA..."
@@ -82,7 +81,7 @@ pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2"
 
 # --- DIAGNÓSTICO FINAL Y ARRANQUE ---
 echo "[DIAGNOSIS] ESTADO FINAL DE DEPENDENCIAS:"
-pip list | grep -E "onnx|insightface|numpy"
+pip list | grep -E "onnx|insightface|numpy|opencv|albumentations|albucore"
 echo "[DIAGNOSIS] Resultado de 'pip check':"
 pip check || true
 
