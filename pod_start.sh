@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v34.1 (Estrategia de Pre-Instalación Completa)
+# Script de Arranque v35.0 (Estrategia de Construcción Limpia y Moderna)
 # ==============================================================================
 
-# No usamos 'set -e' para que el script no muera y podamos registrar el error.
-# set -e
+# set -e # Descomentar para debug si algo falla
 set -o pipefail
 
 # --- FASE 0: PREPARACIÓN DE LOGS ÚNICOS ---
@@ -19,13 +18,17 @@ echo "--- INICIO DEL LOG DE ARRANQUE (ID: ${UNIQUE_ID}) ---"
 echo "====================================================================="
 
 
-# --- FASE 1: INSTALACIÓN MÍNIMA ---
-echo "[INFO] FASE 1: Instalando dependencias del sistema y de la aplicación..."
+# --- FASE 1: DEPENDENCIAS DEL SISTEMA ---
+echo "[INFO] FASE 1: Instalando dependencias del sistema..."
 apt-get update && apt-get install -y build-essential python3-dev curl unzip git
 pip install --upgrade pip
-pip install --no-cache-dir insightface==0.7.3 facexlib timm ftfy
 
-# --- FASES 2 Y 3 ---
+# --- [NUEVA FASE 1.5] CONSTRUCCIÓN DEL ENTORNO BASE MODERNO ---
+echo "[INFO] FASE 1.5: Construyendo el entorno Python base con versiones modernas y compatibles..."
+# Se instala onnxruntime-gpu 1.18, que es compatible con NumPy 2.x, resolviendo el conflicto de raíz.
+pip install --no-cache-dir "numpy>=2.0" "onnxruntime-gpu>=1.18" opencv-python-headless insightface==0.7.3 facexlib timm ftfy
+
+# --- FASES 2 Y 3: DEFINICIÓN DE RUTAS Y VERIFICACIÓN ---
 echo "[INFO] FASE 2: Definiendo rutas..."
 CONFIG_SOURCE_DIR="/workspace/morpheus_config" 
 NETWORK_VOLUME_PATH="/runpod-volume"
@@ -39,13 +42,9 @@ echo "[INFO] FASE 3: Verificando persistencia del volumen..."
 WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then echo "¡ERROR FATAL! '${CACHE_DIR}' no apareció."; exit 1; fi; echo -n "."; sleep 2; ELAPSED=$((ELAPSED + 2)); done;
 echo " ¡Volumen persistente verificado!"
 
-# --- [NUEVA FASE 3.5] PRE-INSTALACIÓN DE VERSIONES CRÍTICAS ---
-echo "[INFO] FASE 3.5: Pre-instalando y fijando versiones críticas compatibles..."
-# Esta es la combinación completa y compatible. Se instala ANTES que los requirements de los nodos.
-pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 "numpy<2" opencv-python==4.8.0.76 opencv-python-headless==4.8.0.76 albumentations==1.3.1 albucore==0.0.13
 
-# --- FASE 4: ENLACES E INSTALACIÓN DE DEPENDENCIAS RESTANTES ---
-echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
+# --- FASE 4: ENLACES E INSTALACIÓN DE DEPENDENCIAS DE NODOS ---
+echo "[INFO] FASE 4: Creando enlaces e instalando dependencias adicionales de nodos..."
 mkdir -p "${CUSTOM_NODES_DIR}"
 mkdir -p "${WORKFLOWS_DEST_DIR}"
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
@@ -61,7 +60,7 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
-                    # pip ahora verá que las versiones ya están instaladas y no las tocará
+                    # pip verá que las versiones core ya están instaladas y no las tocará.
                     pip install -r "$REQ_FILE"; 
                 fi; 
             fi;;
