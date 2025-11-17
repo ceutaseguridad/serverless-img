@@ -8,15 +8,15 @@
       "scheduler": "__param:scheduler__",
       "denoise": 1,
       "model": [
-        "20",
+        "4",
         0
       ],
       "positive": [
-        "6",
+        "20",
         0
       ],
       "negative": [
-        "7",
+        "21",
         0
       ],
       "latent_image": [
@@ -35,7 +35,7 @@
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
-      "title": "1. Load Checkpoint (SDXL Base)"
+      "title": "Load Checkpoint (SDXL Base)"
     }
   },
   "5": {
@@ -85,7 +85,7 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "5. Save Image"
+      "title": "Save Image"
     }
   },
   "9": {
@@ -120,7 +120,7 @@
     },
     "class_type": "InstantIDFaceAnalysis",
     "_meta": {
-      "title": "1. Load Face Analysis Model"
+      "title": "Load Face Analysis Model"
     }
   },
   "18": {
@@ -130,22 +130,68 @@
     },
     "class_type": "InstantIDModelLoader",
     "_meta": {
-      "title": "1. Load InstantID Models"
+      "title": "Load InstantID Models"
     }
   },
   "20": {
     "inputs": {
-      "model": [
-        "4",
+      "conditioning": [
+        "6",
+        0
+      ],
+      "control_net": [
+        "18",
+        1
+      ],
+      "image": [
+        "10",
+        0
+      ],
+      "weight": "__param:pose_weight__",
+      "start_at": 0,
+      "end_at": 1
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "Apply Pose ControlNet"
+    }
+  },
+  "21": {
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ],
+      "control_net": [
+        "18",
+        1
+      ],
+      "image": [
+        "10",
+        0
+      ],
+      "weight": "__param:pose_weight__",
+      "start_at": 0,
+      "end_at": 1
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "Apply Pose ControlNet (Negative)"
+    }
+  },
+  "22": {
+    "inputs": {
+      "positive": [
+        "20",
+        0
+      ],
+      "negative": [
+        "21",
         0
       ],
       "instantid": [
         "18",
         0
-      ],
-      "controlnet": [
-        "18",
-        1
       ],
       "insightface": [
         "17",
@@ -155,28 +201,12 @@
         "10",
         0
       ],
-      "image_kps": [
-        "10",
-        0
-      ],
-      "prompt": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
-      "style": "Vivid",
-      "weight_style": "__param:style_weight__",
-      "weight_face": "__param:face_weight__",
-      "ip_adapter_noise": 0,
-      "cn_strength": "__param:pose_weight__",
-      "mask_face": false
+      "image_weight": "__param:face_weight__",
+      "style_weight": "__param:style_weight__"
     },
     "class_type": "ApplyInstantID",
     "_meta": {
-      "title": "2. Apply InstantID (CORE NODE)"
+      "title": "Apply InstantID"
     }
   }
 }
