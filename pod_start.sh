@@ -94,7 +94,7 @@ echo "[INFO] FASE 4.5: Iniciando armonización de dependencias..." >> "${MASTER_
 echo "[ACTION] Forzando la instalación de una versión de onnxruntime-gpu compatible con insightface==0.7.3..." >> "${MASTER_LOG_FILE}"
 # Esto desinstalará la versión nueva (ej. 1.23.2) instalada por los requirements.txt
 # y la reemplazará por la versión 1.17.3, que es compatible.
-pip install --no-cache-dir --force-reinstall onnxruntime-gpu==1.17.3 >> "${MASTER_LOG_FILE}" 2>&1
+pip install --no-cache-dir --force-reinstall onnxruntime-gpu==1.17.1 >> "${MASTER_LOG_FILE}" 2>&1
 echo "[SUCCESS] Armonización completada. El entorno ahora debería ser consistente." >> "${MASTER_LOG_FILE}"
 
 
