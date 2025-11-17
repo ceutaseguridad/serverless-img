@@ -1,54 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v33 (Solución de Mínima Invasión)
-# ==============================================================================
-
-set -e
-set -o pipefail
-
-# --- FASE 0: PREPARACIÓN DEL LOG ---
-NETWORK_VOLUME_PATH="/runpod-volume"
-MASTER_LOG_FILE="${NETWORK_VOLUME_PATH}/minimal_invasion_log.txt"
-echo "--- INICIO DEL LOG DE MÍNIMA INVASIÓN v33 ---" > "${MASTER_LOG_FILE}"
-echo "Fecha y Hora de Inicio: $(date)" >> "${MASTER_LOG_FILE}"
-
-# --- FASE 1: INSTALACIÓN MÍNIMA ---
-# Respeta al máximo el entorno de la plantilla base.
-echo "[INFO] FASE 1: Instalando dependencias del sistema y de la aplicación..." >> "${MASTER_LOG_FILE}"
-apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-dev curl unzip git > /dev/null 2>&1
-pip install --upgrade pip >> "${MASTER_LOG_FILE}" 2>&1
-pip install --no-cache-dir insightface==0.7.3 facexlib timm ftfy >> "${MASTER_LOG_FILE}" 2>&1
-
-# --- FASE 2, 3, 4 (COMO ANTES) ---
-# Se definen rutas y se instalan los requirements.txt de los nodos,
-# lo que dejará el entorno en un estado conflictivo conocido.
-# ... (el código de las fases 2, 3 y 4 es idéntico al de la v32) ...
-# Por brevedad, no lo repito, pero debe estar aquí.
-
-# --- FASE 4.5: ARMONIZACIÓN NO DESTRUCTIVA (LA NUEVA ESTRATEGIA) ---
-echo "[INFO] FASE 4.5: Iniciando armonización NO DESTRUCTIVA..." >> "${MASTER_LOG_FILE}"
-echo "[ACTION] Asegurando versiones compatibles de onnxruntime y numpy..." >> "${MASTER_LOG_FILE}"
-# NO usamos --force-reinstall. Simplemente le pedimos a pip que instale estas versiones.
-# Pip las degradará (downgrade) si las versiones actuales son más altas.
-pip install --no-cache-dir onnxruntime==1.17.1 onnxruntime-gpu==1.17.1 numpy==2.2.0 >> "${MASTER_LOG_FILE}" 2>&1
-echo "[SUCCESS] Armonización completada." >> "${MASTER_LOG_FILE}"
-
-
-# --- DIAGNÓSTICO FINAL, PARCHES, Y ARRANQUE (COMO ANTES) ---
-# El resto del script (Diagnóstico final, Parche PuLID, FASE 5 y 6) 
-# es idéntico al de la v32. Pégalo aquí.
-# ...
-El Comando Para Ver los Errores (Respondiendo a tu pregunta)
-El problema es que si el worker se reinicia, el log se sobrescribe y lo pierdes. Para evitar esto, necesitamos hacer un pequeño truco: hacer que el script escriba en un fichero con un nombre único cada vez que se ejecuta.
-Dame un momento para darte el script completo y corregido. Es la única forma de que puedas capturar el error.
-SCRIPT COMPLETO v33 - CON LOGS ÚNICOS (ESTE ES EL BUENO)
-code
-Bash
-#!/bin/bash
-
-# ==============================================================================
-# Script de Arranque v33 (Solución de Mínima Invasión + Logs Únicos)
+# Script de Arranque v33.1 (Solución de Mínima Invasión + Logs Únicos + Corrección de Sintaxis)
 # ==============================================================================
 
 # No usamos 'set -e' para que el script no muera y podamos registrar el error.
@@ -86,22 +39,42 @@ CUSTOM_NODES_DIR="${COMFYUI_DIR}/custom_nodes"
 MODELS_DIR="${COMFYUI_DIR}/models"
 
 echo "[INFO] FASE 3: Verificando persistencia del volumen..."
-WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge "$TIMEOUT" ]; then echo "¡ERROR FATAL! '${CACHE_DIR}' no apareció."; exit 1; fi; echo -n "."; sleep 2; ELAPSED=$((ELAPSED + 2)); done;
+WAIT_TIMEOUT=60; ELAPSED=0; while [ ! -d "$CACHE_DIR" ]; do if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then echo "¡ERROR FATAL! '${CACHE_DIR}' no apareció."; exit 1; fi; echo -n "."; sleep 2; ELAPSED=$((ELAPSED + 2)); done;
 echo " ¡Volumen persistente verificado!"
 
 echo "[INFO] FASE 4: Creando enlaces e instalando dependencias de nodos..."
 mkdir -p "${WORKFLOWS_DEST_DIR}"; cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
+
+# --- [INICIO DEL CÓDIGO CORREGIDO] ---
+# Se utiliza una tubería (`|`) en lugar de la sustitución de procesos (`< <(...)`)
+# para asegurar la compatibilidad con el intérprete /bin/sh.
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
-while IFS=, read -r type name url || [[ -n "$type" ]]; do
+grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
     type=$(echo "$type" | xargs); name=$(echo "$name" | xargs); SOURCE_PATH="${CACHE_DIR}/${name}"
     case "$type" in
         GIT)
-            DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; if [ -d "$SOURCE_PATH" ]; then ln -sf "$SOURCE_PATH" "$DEST_PATH"; REQ_FILE="${DEST_PATH}/requirements.txt"; if [ -f "$REQ_FILE" ]; then pip install -r "$REQ_FILE"; fi; fi;;
+            DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
+            if [ -d "$SOURCE_PATH" ]; then 
+                ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
+                REQ_FILE="${DEST_PATH}/requirements.txt"; 
+                if [ -f "$REQ_FILE" ]; then 
+                    pip install -r "$REQ_FILE"; 
+                fi; 
+            fi;;
         URL_AUTH)
-            DEST_PATH="${MODELS_DIR}/${name}"; if [ -d "$SOURCE_PATH" ]; then mkdir -p "$DEST_PATH"; ln -sf "$SOURCE_PATH"/* "$DEST_PATH/"; elif [ -f "$SOURCE_PATH" ]; then mkdir -p "$(dirname "$DEST_PATH")"; ln -sf "$SOURCE_PATH" "$DEST_PATH"; fi;;
+            DEST_PATH="${MODELS_DIR}/${name}"; 
+            if [ -d "$SOURCE_PATH" ]; then 
+                mkdir -p "$DEST_PATH"; 
+                ln -sf "$SOURCE_PATH"/* "$DEST_PATH/"; 
+            elif [ -f "$SOURCE_PATH" ]; then 
+                mkdir -p "$(dirname "$DEST_PATH")"; 
+                ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
+            fi;;
     esac
-done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
+done
+# --- [FIN DEL CÓDIGO CORREGIDO] ---
+
 
 # --- FASE 4.5: ARMONIZACIÓN NO DESTRUCTIVA ---
 echo "[INFO] FASE 4.5: Iniciando armonización NO DESTRUCTIVA..."
