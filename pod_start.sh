@@ -1,38 +1,20 @@
-#!/bin-bash
+#!/bin/bash
 
 # ==============================================================================
 # Script de Arranque v29 (Instalación de Dependencias Robusta y Final)
-# VERSIÓN DE DIAGNÓSTICO - MODIFICACIÓN MÍNIMA
+# VERSIÓN CORREGIDA
 # ==============================================================================
 
 set -e
 set -o pipefail
-
-# --- [MODIFICACIÓN 1: INICIO] DEFINIR FICHERO DE LOG ---
-NETWORK_VOLUME_PATH="/runpod-volume"
-LOG_FILE="${NETWORK_VOLUME_PATH}/diagnostic_v29_log.txt"
-echo "--- INICIO DEL LOG DE DIAGNÓSTICO v29 ---" > "${LOG_FILE}"
-echo "Fecha y Hora: $(date)" >> "${LOG_FILE}"
-echo "=======================================" >> "${LOG_FILE}"
-# --- [MODIFICACIÓN 1: FIN] ---
-
 
 # --- FASE 1: INSTALACIÓN DE DEPENDENCIAS ---
 echo "[MORPHEUS-STARTUP] FASE 1: Instalando dependencias..."
 apt-get update > /dev/null 2>&1 && apt-get install -y build-essential python3-dev curl unzip git > /dev/null 2>&1
 pip install --upgrade pip
 echo "[MORPHEUS-STARTUP]    -> Forzando instalación de dependencias base..."
-# --- [MODIFICACIÓN 2: INICIO] REDIRIGIR SALIDA DE PIP AL LOG ---
-pip install --upgrade --no-cache-dir --force-reinstall insightface==0.7.3 facexlib timm ftfy requests xformers "huggingface-hub<1.0" >> "${LOG_FILE}" 2>&1
-# --- [MODIFICACIÓN 2: FIN] ---
+pip install --upgrade --no-cache-dir --force-reinstall insightface==0.7.3 facexlib timm ftfy requests xformers "huggingface-hub<1.0"
 echo "[MORPHEUS-STARTUP]    -> Dependencias base instaladas."
-
-# --- [MODIFICACIÓN 3: INICIO] LOG DEL ESTADO "ANTES" ---
-echo "--- ESTADO DE DEPENDENCIAS 'ANTES' ---" >> "${LOG_FILE}"
-pip list | grep -E "onnx|insightface|onnxruntime" >> "${LOG_FILE}"
-echo "=======================================" >> "${LOG_FILE}"
-# --- [MODIFICACIÓN 3: FIN] ---
-
 
 echo "====================================================================="
 echo "--- [MORPHEUS-STARTUP] INICIANDO CONFIGURACIÓN v29 ---"
@@ -69,21 +51,15 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"
                 echo "[MORPHEUS-STARTUP]    -> Enlace GIT Creado: ${SOURCE_PATH} -> ${DEST_PATH}"
                 
-                # --- [INICIO DE LA CORRECCIÓN LÓGICA] ---
-                # Inmediatamente después de crear el enlace, buscamos e instalamos sus dependencias.
                 REQ_FILE="${DEST_PATH}/requirements.txt"
                 if [ -f "$REQ_FILE" ]; then
                     echo "[MORPHEUS-STARTUP]    -> Encontrado requirements.txt para '${name}'. Instalando..."
-                    # --- [MODIFICACIÓN 4: INICIO] REDIRIGIR SALIDA DE PIP AL LOG ---
-                    pip install -r "$REQ_FILE" >> "${LOG_FILE}" 2>&1
-                    # --- [MODIFICACIÓN 4: FIN] ---
+                    pip install -r "$REQ_FILE"
                     echo "[MORPHEUS-STARTUP]    -> Dependencias para '${name}' instaladas."
                 fi
-                # --- [FIN DE LA CORRECCIÓN LÓGICA] ---
             fi
             ;;
         URL_AUTH)
-            # (Esta parte se mantiene igual que la v28)
             DEST_PATH="${MODELS_DIR}/${name}"
             if [ -d "$SOURCE_PATH" ]; then
                 mkdir -p "$DEST_PATH"; ln -sf "$SOURCE_PATH"/* "$DEST_PATH/"; echo "[MORPHEUS-STARTUP]    -> Enlace Directorio URL_AUTH Creado: ${SOURCE_PATH}/* -> ${DEST_PATH}/"
@@ -95,16 +71,6 @@ while IFS=, read -r type name url || [[ -n "$type" ]]; do
 done < <(grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++')
 
 echo "[MORPHEUS-STARTUP]    -> Creación de enlaces y dependencias finalizada."
-
-# --- [MODIFICACIÓN 5: INICIO] LOG DEL ESTADO "DESPUÉS" Y PIP CHECK ---
-echo "--- ESTADO DE DEPENDENCIAS 'DESPUÉS' ---" >> "${LOG_FILE}"
-pip list | grep -E "onnx|insightface|onnxruntime" >> "${LOG_FILE}"
-echo "=======================================" >> "${LOG_FILE}"
-echo "--- RESULTADO DE 'pip check' ---" >> "${LOG_FILE}"
-pip check >> "${LOG_FILE}" 2>&1 || true
-echo "=======================================" >> "${LOG_FILE}"
-# --- [MODIFICACIÓN 5: FIN] ---
-
 
 # ==============================================================================
 # FASE 4.5: APLICACIÓN DE PARCHES EN CALIENTE (MANTENIDO)
