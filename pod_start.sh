@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v37.4 (Arranque Robusto y a Prueba de Fallos)
+# Script de Arranque v37.5 (Fontanería Definitiva y Arranque Robusto)
 # ==============================================================================
 
-# [CORRECCIÓN 1] Habilitar la salida inmediata en caso de error.
-# Esto es CRÍTICO para evitar que el script continúe si un paso fundamental falla.
+# Habilitar la salida inmediata en caso de error para una depuración clara.
 set -e
 set -o pipefail
 
@@ -21,11 +20,8 @@ echo "====================================================================="
 
 
 # --- FASE 1: DEPENDENCIAS DEL SISTEMA ---
-# [CORRECCIÓN 2] Lógica de instalación robusta con reintentos para apt-get.
 echo "[INFO] FASE 1: Instalando dependencias del sistema (Modo Robusto)..."
-apt-get clean # Limpiar la caché para evitar problemas con índices corruptos
-
-# Bucle de reintentos para 'apt-get update' para mitigar fallos de red/espejo temporales.
+apt-get clean
 success=false
 for i in 1 2 3; do
     echo "Intento $i de 3 para 'apt-get update'..."
@@ -43,8 +39,6 @@ if ! $success; then
     exit 1
 fi
 
-# Instalar las dependencias críticas solo si la actualización fue exitosa.
-# --no-install-recommends evita instalar paquetes innecesarios.
 echo "Instalando paquetes críticos: build-essential, python3-dev, curl..."
 apt-get install -y --no-install-recommends build-essential python3-dev curl unzip git
 echo "Paquetes del sistema instalados."
@@ -76,21 +70,33 @@ mkdir -p "${MODELS_DIR}" # Asegurarse de que la carpeta de modelos principal exi
 
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
-echo "[ACCIÓN] Creando enlaces explícitos para modelos críticos..."
+# --- [CORRECCIÓN] Se restaura la lógica de enlaces de la v37.2, que es más robusta ---
+echo "[ACCIÓN] Creando enlaces para el contenido de las carpetas de modelos críticos..."
+
+# Lógica para IPAdapter
 IPADAPTER_SOURCE_DIR="${CACHE_DIR}/ipadapter"
+IPADAPTER_DEST_DIR="${MODELS_DIR}/ipadapter"
 if [ -d "$IPADAPTER_SOURCE_DIR" ]; then
-    ln -sf "$IPADAPTER_SOURCE_DIR" "$MODELS_DIR"
-    echo "Enlace para la carpeta IPAdapter creado."
+    mkdir -p "$IPADAPTER_DEST_DIR"
+    # Enlaza el CONTENIDO del origen en el destino, no la carpeta en sí.
+    ln -sf "$IPADAPTER_SOURCE_DIR"/* "$IPADAPTER_DEST_DIR/"
+    echo "Enlaces para modelos IPAdapter creados."
 else
     echo "[AVISO] Directorio de origen para IPAdapter no encontrado: $IPADAPTER_SOURCE_DIR"
 fi
+
+# Lógica para ControlNet
 CONTROLNET_SOURCE_DIR="${CACHE_DIR}/controlnet"
+CONTROLNET_DEST_DIR="${MODELS_DIR}/controlnet"
 if [ -d "$CONTROLNET_SOURCE_DIR" ]; then
-    ln -sf "$CONTROLNET_SOURCE_DIR" "$MODELS_DIR"
-    echo "Enlace para la carpeta ControlNet creado."
+    mkdir -p "$CONTROLNET_DEST_DIR"
+    # Enlaza el CONTENIDO del origen en el destino, no la carpeta en sí.
+    ln -sf "$CONTROLNET_SOURCE_DIR"/* "$CONTROLNET_DEST_DIR/"
+    echo "Enlaces para modelos ControlNet creados."
 else
     echo "[AVISO] Directorio de origen para ControlNet no encontrado: $CONTROLNET_SOURCE_DIR"
 fi
+# --- [FIN DE LA CORRECCIÓN] ---
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
@@ -127,10 +133,6 @@ done
 # --- DIAGNÓSTICO PRE-ARRANQUE ---
 echo "[DIAGNOSIS] Contenido final de custom_nodes ANTES de arrancar ComfyUI:"
 ls -l "${CUSTOM_NODES_DIR}"
-echo "[DIAGNOSIS] Contenido final de models ANTES de arrancar ComfyUI:"
-ls -l "${MODELS_DIR}"
-ls -l "${MODELS_DIR}/ipadapter"
-ls -l "${MODELS_DIR}/controlnet"
 echo "[DIAGNOSIS] Resultado de 'pip check' ANTES de arrancar ComfyUI:"
 pip check || true
 
