@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # ==============================================================================
-# Script de Arranque v37.3 (Fontanería Definitiva)
+# Script de Arranque v37.4 (Arranque Robusto y a Prueba de Fallos)
 # ==============================================================================
 
-# set -e # Descomentar para debug si algo falla
+# [CORRECCIÓN 1] Habilitar la salida inmediata en caso de error.
+# Esto es CRÍTICO para evitar que el script continúe si un paso fundamental falla.
+set -e
 set -o pipefail
 
 # --- FASE 0: PREPARACIÓN DE LOGS ÚNICOS ---
@@ -19,8 +21,33 @@ echo "====================================================================="
 
 
 # --- FASE 1: DEPENDENCIAS DEL SISTEMA ---
-echo "[INFO] FASE 1: Instalando dependencias del sistema..."
-apt-get update && apt-get install -y build-essential python3-dev curl unzip git
+# [CORRECCIÓN 2] Lógica de instalación robusta con reintentos para apt-get.
+echo "[INFO] FASE 1: Instalando dependencias del sistema (Modo Robusto)..."
+apt-get clean # Limpiar la caché para evitar problemas con índices corruptos
+
+# Bucle de reintentos para 'apt-get update' para mitigar fallos de red/espejo temporales.
+success=false
+for i in 1 2 3; do
+    echo "Intento $i de 3 para 'apt-get update'..."
+    if apt-get update; then
+        success=true
+        echo "'apt-get update' completado con éxito."
+        break
+    fi
+    echo "El intento $i falló. Esperando 5 segundos antes de reintentar..."
+    sleep 5
+done
+
+if ! $success; then
+    echo "[ERROR FATAL] 'apt-get update' falló después de 3 intentos. Saliendo."
+    exit 1
+fi
+
+# Instalar las dependencias críticas solo si la actualización fue exitosa.
+# --no-install-recommends evita instalar paquetes innecesarios.
+echo "Instalando paquetes críticos: build-essential, python3-dev, curl..."
+apt-get install -y --no-install-recommends build-essential python3-dev curl unzip git
+echo "Paquetes del sistema instalados."
 pip install --upgrade pip
 
 # --- FASE 1.5: CONSTRUCCIÓN DEL ENTORNO BASE MODERNO ---
@@ -49,7 +76,6 @@ mkdir -p "${MODELS_DIR}" # Asegurarse de que la carpeta de modelos principal exi
 
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
-# --- [INICIO DE LA CORRECCIÓN DE FONTANERÍA DEFINITIVA] ---
 echo "[ACCIÓN] Creando enlaces explícitos para modelos críticos..."
 IPADAPTER_SOURCE_DIR="${CACHE_DIR}/ipadapter"
 if [ -d "$IPADAPTER_SOURCE_DIR" ]; then
@@ -65,7 +91,6 @@ if [ -d "$CONTROLNET_SOURCE_DIR" ]; then
 else
     echo "[AVISO] Directorio de origen para ControlNet no encontrado: $CONTROLNET_SOURCE_DIR"
 fi
-# --- [FIN DE LA CORRECCIÓN DE FONTANERÍA DEFINITIVA] ---
 
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
