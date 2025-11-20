@@ -109,10 +109,7 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
             DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
             if [ -d "$SOURCE_PATH" ]; then
                 echo "Enlazando nodo desde '$SOURCE_PATH' a '$DEST_PATH'..."
-                # Crea un único enlace simbólico del directorio completo.
-                # El flag -f (force) se encargará de reemplazar cualquier enlace roto o archivo previo.
                 ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
-                
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
                     echo "Instalando requirements para '$name' (modo defensivo)..."
