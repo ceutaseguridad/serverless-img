@@ -29,15 +29,6 @@
       "title": "KSampler"
     }
   },
-  "4": {
-    "inputs": {
-      "ckpt_name": "__param:checkpoint_name__"
-    },
-    "class_type": "CheckpointLoaderSimple",
-    "_meta": {
-      "title": "Load Checkpoint (SDXL Base)"
-    }
-  },
   "5": {
     "inputs": {
       "width": "__param:width__",
@@ -53,7 +44,7 @@
     "inputs": {
       "text": "__param:prompt__",
       "clip": [
-        "4",
+        "20",
         1
       ]
     },
@@ -66,7 +57,7 @@
     "inputs": {
       "text": "__param:negative_prompt__",
       "clip": [
-        "4",
+        "20",
         1
       ]
     },
@@ -95,7 +86,7 @@
         0
       ],
       "vae": [
-        "4",
+        "20",
         2
       ]
     },
@@ -123,48 +114,25 @@
       "title": "Load Face Analysis Model"
     }
   },
-  "18": {
-    "inputs": {
-      "instantid_file": "ip-adapter-instantid-sdxl.bin",
-      "controlnet_file": "control-lora-rank-256-instantid.safetensors"
-    },
-    "class_type": "InstantIDModelLoader",
-    "_meta": {
-      "title": "Load InstantID Models"
-    }
-  },
   "20": {
     "inputs": {
-      "model": [
-        "4",
-        0
-      ],
-      "instantid": [
-        "18",
-        0
-      ],
-      "control_net": [
-        "18",
-        1
-      ],
+      "ckpt_name": "__param:checkpoint_name__",
+      "instantid_file": "ip-adapter-instantid-sdxl.bin",
+      "controlnet_file": "control-lora-rank-256-instantid.safetensors",
       "insightface": [
         "17",
         0
       ],
-      "image": [
+      "face_image": [
         "10",
         0
       ],
       "ip_weight": "__param:ip_weight__",
-      "cn_strength": "__param:cn_strength__",
-      "style_weight": "__param:style_weight__",
-      "combine_embeds": "__param:combine_embeds__",
-      "start_at": "__param:start_at__",
-      "end_at": "__param:end_at__"
+      "cn_strength": "__param:cn_strength__"
     },
-    "class_type": "ApplyInstantID",
+    "class_type": "InstantIDLoader",
     "_meta": {
-      "title": "Apply InstantID (CORE NODE)"
+      "title": "InstantID Loader (CORE NODE)"
     }
   }
 }
