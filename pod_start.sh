@@ -108,11 +108,10 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
         GIT)
             DEST_PATH="${CUSTOM_NODES_DIR}/${name}"; 
             if [ -d "$SOURCE_PATH" ]; then
-                echo "Enlazando CONTENIDO del nodo desde '$SOURCE_PATH' a '$DEST_PATH'..."
-                # 1. Asegurarse de que el directorio de destino existe.
-                mkdir -p "$DEST_PATH"
-                # 2. Enlazar el CONTENIDO del origen en el destino, igual que con ControlNet/IPAdapter.
-                ln -sf "$SOURCE_PATH"/* "$DEST_PATH/"
+                echo "Enlazando nodo desde '$SOURCE_PATH' a '$DEST_PATH'..."
+                # Crea un único enlace simbólico del directorio completo.
+                # El flag -f (force) se encargará de reemplazar cualquier enlace roto o archivo previo.
+                ln -sf "$SOURCE_PATH" "$DEST_PATH"; 
                 
                 REQ_FILE="${DEST_PATH}/requirements.txt"; 
                 if [ -f "$REQ_FILE" ]; then 
