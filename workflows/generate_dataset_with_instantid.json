@@ -8,7 +8,7 @@
       "scheduler": "__param:scheduler__",
       "denoise": 1,
       "model": [
-        "20",
+        "3",
         0
       ],
       "positive": [
