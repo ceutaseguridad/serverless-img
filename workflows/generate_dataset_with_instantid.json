@@ -12,12 +12,12 @@
         0
       ],
       "positive": [
-        "6",
-        0
+        "20",
+        1
       ],
       "negative": [
-        "7",
-        0
+        "20",
+        2
       ],
       "latent_image": [
         "5",
@@ -27,6 +27,15 @@
     "class_type": "KSampler",
     "_meta": {
       "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "__param:checkpoint_name__"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint (SDXL Base)"
     }
   },
   "5": {
@@ -44,7 +53,7 @@
     "inputs": {
       "text": "__param:prompt__",
       "clip": [
-        "20",
+        "4",
         1
       ]
     },
@@ -57,7 +66,7 @@
     "inputs": {
       "text": "__param:negative_prompt__",
       "clip": [
-        "20",
+        "4",
         1
       ]
     },
@@ -86,7 +95,7 @@
         0
       ],
       "vae": [
-        "20",
+        "4",
         2
       ]
     },
@@ -114,25 +123,65 @@
       "title": "Load Face Analysis Model"
     }
   },
+  "18": {
+    "inputs": {
+      "instantid_file": "ip-adapter-instantid-sdxl.bin",
+      "controlnet_file": "control-lora-rank-256-instantid.safetensors"
+    },
+    "class_type": "InstantIDModelLoader",
+    "_meta": {
+      "title": "Load InstantID Models"
+    }
+  },
   "20": {
     "inputs": {
-      "ckpt_name": "__param:checkpoint_name__",
-      "instantid_file": "ip-adapter-instantid-sdxl.bin",
-      "controlnet_file": "control-lora-rank-256-instantid.safetensors",
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "instantid": [
+        "18",
+        0
+      ],
+      "control_net": [
+        "18",
+        1
+      ],
       "insightface": [
         "17",
         0
       ],
-      "face_image": [
+      "image": [
         "10",
         0
       ],
+      "image_kps": [
+        "10",
+        0
+      ],
+      "noise": [
+        "5",
+        0
+      ],
+      "style": "Vivid",
+      "style_weight": "__param:style_weight__",
       "ip_weight": "__param:ip_weight__",
-      "cn_strength": "__param:cn_strength__"
+      "cn_strength": "__param:cn_strength__",
+      "start_at": "__param:start_at__",
+      "end_at": "__param:end_at__",
+      "combine_embeds": "__param:combine_embeds__"
     },
-    "class_type": "InstantIDLoader",
+    "class_type": "ApplyInstantIDAdvanced",
     "_meta": {
-      "title": "InstantID Loader (CORE NODE)"
+      "title": "Apply InstantID Advanced (CORE NODE)"
     }
   }
 }
