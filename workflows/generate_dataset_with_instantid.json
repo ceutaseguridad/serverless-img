@@ -12,12 +12,12 @@
         0
       ],
       "positive": [
-        "20",
-        1
+        "6",
+        0
       ],
       "negative": [
-        "20",
-        2
+        "7",
+        0
       ],
       "latent_image": [
         "5",
@@ -139,14 +139,6 @@
         "4",
         0
       ],
-      "positive": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
       "instantid": [
         "18",
         0
@@ -163,23 +155,14 @@
         "10",
         0
       ],
-      "image_kps": [
-        "10",
-        0
-      ],
-      "noise": [
-        "5",
-        0
-      ],
-      "style": "Vivid",
-      "style_weight": "__param:style_weight__",
       "ip_weight": "__param:ip_weight__",
       "cn_strength": "__param:cn_strength__",
+      "style_weight": "__param:style_weight__",
+      "combine_embeds": "__param:combine_embeds__",
       "start_at": "__param:start_at__",
-      "end_at": "__param:end_at__",
-      "combine_embeds": "__param:combine_embeds__"
+      "end_at": "__param:end_at__"
     },
-    "class_type": "ApplyInstantIDAdvanced",
+    "class_type": "ApplyInstantID",
     "_meta": {
       "title": "Apply InstantID (CORE NODE)"
     }
