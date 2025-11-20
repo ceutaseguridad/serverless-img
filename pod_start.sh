@@ -98,7 +98,19 @@ else
     mkdir -p "$CONTROLNET_DEST_DIR"
 fi
 # --- [FIN DE LA CORRECCIÓN DEFINITIVA] ---
-
+# Lógica para InstantID
+INSTANTID_SOURCE_DIR="${CACHE_DIR}/instantid"
+INSTANTID_DEST_DIR="${MODELS_DIR}/instantid"
+if [ -d "$INSTANTID_SOURCE_DIR" ]; then
+    # Eliminar cualquier enlace o directorio roto previo
+    rm -rf "$INSTANTID_DEST_DIR"
+    # Crear un enlace simbólico del directorio completo
+    ln -s "$INSTANTID_SOURCE_DIR" "$INSTANTID_DEST_DIR"
+    echo "Enlace de directorio para InstantID creado."
+else
+    echo "[AVISO] Directorio de origen para InstantID no encontrado: $INSTANTID_SOURCE_DIR. Creando directorio vacío."
+    mkdir -p "$INSTANTID_DEST_DIR"
+fi
 RESOURCE_FILE="${CONFIG_SOURCE_DIR}/morpheus_resources_image.txt"
 grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r type name url || [[ -n "$type" ]]; do
     [[ "$type" =~ ^# ]] || [[ -z "$type" ]] && continue
