@@ -151,7 +151,7 @@
         "18",
         0
       ],
-      "controlnet": [
+      "control_net": [
         "18",
         1
       ],
@@ -167,10 +167,17 @@
         "10",
         0
       ],
+      "noise": [
+        "5",
+        0
+      ],
       "style": "Vivid",
-      "weight_style": "__param:style_weight__",
-      "weight_face": "__param:face_weight__",
-      "weight_pose": "__param:pose_weight__"
+      "style_weight": "__param:style_weight__",
+      "ip_weight": "__param:ip_weight__",
+      "cn_strength": "__param:cn_strength__",
+      "start_at": "__param:start_at__",
+      "end_at": "__param:end_at__",
+      "combine_embeds": "__param:combine_embeds__"
     },
     "class_type": "ApplyInstantIDAdvanced",
     "_meta": {
