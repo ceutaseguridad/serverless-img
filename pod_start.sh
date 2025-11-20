@@ -71,17 +71,14 @@ mkdir -p "${MODELS_DIR}" # Asegurarse de que la carpeta de modelos principal exi
 cp -v "${CONFIG_SOURCE_DIR}/workflows/"*.json "${WORKFLOWS_DEST_DIR}/"; cp /handler.py "${CONFIG_SOURCE_DIR}/comfy_handler.py"
 
 # --- [INICIO DE LA CORRECCIÓN DEFINITIVA] ---
-# La lógica anterior que usaba '/*' era defectuosa porque no era recursiva.
-# La forma correcta es enlazar el directorio completo para preservar la estructura interna.
+# La lógica de enlazar directorios completos es la correcta y más robusta.
 echo "[ACCIÓN] Creando enlaces de directorio para modelos críticos..."
 
 # Lógica para IPAdapter
 IPADAPTER_SOURCE_DIR="${CACHE_DIR}/ipadapter"
 IPADAPTER_DEST_DIR="${MODELS_DIR}/ipadapter"
 if [ -d "$IPADAPTER_SOURCE_DIR" ]; then
-    # Eliminar cualquier enlace o directorio roto previo para evitar conflictos
     rm -rf "$IPADAPTER_DEST_DIR"
-    # Crear un enlace simbólico del directorio completo
     ln -s "$IPADAPTER_SOURCE_DIR" "$IPADAPTER_DEST_DIR"
     echo "Enlace de directorio para IPAdapter creado."
 else
@@ -93,9 +90,7 @@ fi
 CONTROLNET_SOURCE_DIR="${CACHE_DIR}/controlnet"
 CONTROLNET_DEST_DIR="${MODELS_DIR}/controlnet"
 if [ -d "$CONTROLNET_SOURCE_DIR" ]; then
-    # Eliminar cualquier enlace o directorio roto previo
     rm -rf "$CONTROLNET_DEST_DIR"
-    # Crear un enlace simbólico del directorio completo
     ln -s "$CONTROLNET_SOURCE_DIR" "$CONTROLNET_DEST_DIR"
     echo "Enlace de directorio para ControlNet creado."
 else
@@ -125,6 +120,16 @@ grep -v '^#' "$RESOURCE_FILE" | awk -F, '!seen[$1,$2]++' | while IFS=, read -r t
                 echo "[AVISO] El directorio de origen '$SOURCE_PATH' para el nodo '$name' no existe. Saltando enlace."
             fi;;
         URL_AUTH)
+            # --- [INICIO DE LA LÓGICA DE PREVENCIÓN DE CONFLICTOS] ---
+            # Verificamos si el 'name' del recurso empieza con 'ipadapter/' o 'controlnet/'.
+            # Si es así, significa que su directorio ya ha sido enlazado en bloque.
+            # Saltamos este enlace individual para evitar el error "are the same file" que detiene el script.
+            if [[ "$name" == "ipadapter/"* ]] || [[ "$name" == "controlnet/"* ]]; then
+                echo "[INFO] Saltando enlace individual para '$name'. El directorio ya está gestionado en bloque."
+                continue
+            fi
+            # --- [FIN DE LA LÓGICA DE PREVENCIÓN DE CONFLICTOS] ---
+            
             DEST_PATH="${MODELS_DIR}/${name}"; 
             if [ -e "$SOURCE_PATH" ]; then
                 echo "Enlazando modelo desde '$SOURCE_PATH' a '$DEST_PATH'..."
