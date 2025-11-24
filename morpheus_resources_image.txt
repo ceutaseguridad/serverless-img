@@ -14,6 +14,8 @@ GIT,ComfyUI-Advanced-ControlNet,https://github.com/Kosinkadink/ComfyUI-Advanced-
 # Checkpoint principal para generación de imágenes fotorrealistas.
 URL_AUTH,checkpoints/talmendoxl_v11_beta.safetensors,https://civitai.com/api/download/models/131960
 URL_AUTH, checkpoints/CyberRealisticXLPlay_V6.0.safetensors, https://huggingface.co/cyberdelia/CyberRealisticXL/resolve/main/CyberRealisticXLPlay_V6.0.safetensors
+URL_AUTH,checkpoints/PhotoMomentum_v2.0.safetensors,https://civitai.com/api/download/models/2211429?type=Model&format=SafeTensor&size=pruned&fp=fp16&token=c10078ba99204e69908460eeb5eccac9
+URL_AUTH,checkpoints/BigLust_V2.safetensors,https://civitai.com/api/download/models/1081768?type=Model&format=SafeTensor&size=full&fp=fp16&token=c10078ba99204e69908460eeb5eccac9
 
 # [CORREGIDO] Modelo de Identidad para PuLID - URL de Hugging Face verificada.
 URL_AUTH,ipadapter/ip-adapter_pulid_sdxl_fp16.safetensors,https://huggingface.co/huchenlei/ipadapter_pulid/resolve/main/ip-adapter_pulid_sdxl_fp16.safetensors
@@ -32,5 +34,6 @@ GIT, ComfyUI_InstantID, https://github.com/cubiq/ComfyUI_InstantID.git
 URL_AUTH, insightface, DUMMY_URL
 URL_AUTH, ipadapter, DUMMY_URL
 URL_AUTH, controlnet, DUMMY_URL
+
 
 
